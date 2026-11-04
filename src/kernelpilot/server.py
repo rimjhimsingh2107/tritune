@@ -84,19 +84,35 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/env")
     def environment():
-        backend = settings.backend if settings.backend != "auto" else ("triton" if env.can_run_triton else "sim")
-        return {"environment": env.to_dict(), "backend": backend, "simulated": backend == "sim",
-                "llm_provider": settings.llm_provider, "db": str(settings.db_path)}
+        backend = (
+            settings.backend
+            if settings.backend != "auto"
+            else ("triton" if env.can_run_triton else "sim")
+        )
+        return {
+            "environment": env.to_dict(),
+            "backend": backend,
+            "simulated": backend == "sim",
+            "llm_provider": settings.llm_provider,
+            "db": str(settings.db_path),
+        }
 
     @app.get("/api/kernels")
     def kernels():
         return {
-            "operators": [{
-                "name": s.name, "summary": s.summary, "dtypes": list(s.dtypes),
-                "default_shapes": [list(x) for x in s.default_shapes],
-                "variants": [{"name": v.name, "summary": v.summary, "searchable": v.searchable}
-                             for v in s.variants.values()],
-            } for s in REGISTRY.values()],
+            "operators": [
+                {
+                    "name": s.name,
+                    "summary": s.summary,
+                    "dtypes": list(s.dtypes),
+                    "default_shapes": [list(x) for x in s.default_shapes],
+                    "variants": [
+                        {"name": v.name, "summary": v.summary, "searchable": v.searchable}
+                        for v in s.variants.values()
+                    ],
+                }
+                for s in REGISTRY.values()
+            ],
             "suites": SUITES,
         }
 
@@ -105,13 +121,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         out = []
         for e in store.experiments(limit):
             s = e.get("summary") or {}
-            out.append({
-                "id": e["id"], "name": e["name"], "strategy": e["strategy"], "status": e["status"],
-                "simulated": bool(e["simulated"]), "backend": e["backend"], "created_at": e["created_at"],
-                "finished_at": e["finished_at"], "target": e["target"], "params": e["params"],
-                "geomean_speedup": s.get("geomean_speedup"), "candidates": s.get("candidates"),
-                "compile_failed": s.get("compile_failed"), "invalid": s.get("invalid"),
-            })
+            out.append(
+                {
+                    "id": e["id"],
+                    "name": e["name"],
+                    "strategy": e["strategy"],
+                    "status": e["status"],
+                    "simulated": bool(e["simulated"]),
+                    "backend": e["backend"],
+                    "created_at": e["created_at"],
+                    "finished_at": e["finished_at"],
+                    "target": e["target"],
+                    "params": e["params"],
+                    "geomean_speedup": s.get("geomean_speedup"),
+                    "candidates": s.get("candidates"),
+                    "compile_failed": s.get("compile_failed"),
+                    "invalid": s.get("invalid"),
+                }
+            )
         return out
 
     @app.get("/api/experiments/{exp_id}")
@@ -173,7 +200,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 problems = suite_problems(req.suite)
             elif req.op:
                 spec = get_spec(req.op)
-                problems = [Problem(req.op, tuple(req.shape or spec.default_shapes[0]), req.dtype or spec.dtypes[0])]
+                problems = [
+                    Problem(
+                        req.op,
+                        tuple(req.shape or spec.default_shapes[0]),
+                        req.dtype or spec.dtypes[0],
+                    )
+                ]
             else:
                 raise ValueError("give op or suite")
         except (KeyError, ValueError) as exc:
@@ -185,7 +218,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         def work() -> None:
             try:
                 ctx = Context.create(settings, env)
-                exp_id, _ = run_experiment(ctx, problems, req.strategy, req.budget, planner=req.planner)
+                exp_id, _ = run_experiment(
+                    ctx, problems, req.strategy, req.budget, planner=req.planner
+                )
                 jobs[job_id].update(status="done", experiment_id=exp_id)
             except Exception as exc:
                 log.exception("run failed")
@@ -211,9 +246,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 return FileResponse(target)
             return FileResponse(dist / "index.html")
     else:
+
         @app.get("/", include_in_schema=False)
         def no_dashboard() -> HTMLResponse:
-            return HTMLResponse("<p>API is up. Build the dashboard with <code>cd dashboard && npm install && "
-                                "npm run build</code>, or see <a href='/docs'>/docs</a>.</p>")
+            return HTMLResponse(
+                "<p>API is up. Build the dashboard with <code>cd dashboard && npm install && "
+                "npm run build</code>, or see <a href='/docs'>/docs</a>.</p>"
+            )
 
     return app

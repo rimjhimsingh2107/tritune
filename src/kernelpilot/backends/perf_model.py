@@ -80,7 +80,9 @@ def occupancy(res: Resources, dev: SimDevice) -> tuple[int, float, str]:
     limits = {
         "threads": dev.max_threads_per_sm // res.threads,
         "registers": dev.regs_per_sm // max(1, regs_alloc * res.threads),
-        "shared memory": dev.smem_per_sm // res.smem_bytes if res.smem_bytes else dev.max_blocks_per_sm,
+        "shared memory": dev.smem_per_sm // res.smem_bytes
+        if res.smem_bytes
+        else dev.max_blocks_per_sm,
         "block slots": dev.max_blocks_per_sm,
     }
     limiter = min(limits, key=lambda k: limits[k])
@@ -88,7 +90,9 @@ def occupancy(res: Resources, dev: SimDevice) -> tuple[int, float, str]:
     return blocks, blocks * res.threads / dev.max_threads_per_sm, limiter
 
 
-def _l2_miss_rate(spec: KernelSpec, cfg: KernelConfig, problem: Problem, concurrent: int, dev: SimDevice) -> float:
+def _l2_miss_rate(
+    spec: KernelSpec, cfg: KernelConfig, problem: Problem, concurrent: int, dev: SimDevice
+) -> float:
     """Fraction of re-read matmul operand traffic that actually goes to DRAM."""
     _, n, k = problem.shape
     e = problem.elem_bytes
@@ -121,7 +125,9 @@ def predict(spec: KernelSpec, cfg: KernelConfig, problem: Problem, dev: SimDevic
     if spec.name == "matmul":
         m, n, k = problem.shape
         unique = (m * k + k * n + m * n) * problem.elem_bytes
-        dram = unique + (cost.dram_bytes - unique) * _l2_miss_rate(spec, cfg, problem, concurrent, dev)
+        dram = unique + (cost.dram_bytes - unique) * _l2_miss_rate(
+            spec, cfg, problem, concurrent, dev
+        )
     elif spec.name == "softmax" and cfg.variant == "online":
         # the second read of a row usually hits L2 when rows are small
         m, ncols = problem.shape

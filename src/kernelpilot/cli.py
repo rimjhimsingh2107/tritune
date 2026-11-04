@@ -19,11 +19,16 @@ from kernelpilot.kernels import REGISTRY, get_spec
 from kernelpilot.log import setup_logging
 from kernelpilot.problem import Problem
 
-app = typer.Typer(no_args_is_help=True, add_completion=False,
-                  help="KernelPilot: feedback-driven optimization for Triton kernels.")
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    help="KernelPilot: feedback-driven optimization for Triton kernels.",
+)
 console = Console()
 
-SIM_NOTE = "[bold yellow]SIMULATED[/] no GPU in use; timings come from a model, numerics are emulated"
+SIM_NOTE = (
+    "[bold yellow]SIMULATED[/] no GPU in use; timings come from a model, numerics are emulated"
+)
 
 
 def _settings(backend: str | None = None, **kw):
@@ -43,7 +48,9 @@ def _ctx(settings):
         raise typer.Exit(2) from exc
 
 
-def _problems(op: str | None, shape: str | None, dtype: str | None, suite: str | None) -> list[Problem]:
+def _problems(
+    op: str | None, shape: str | None, dtype: str | None, suite: str | None
+) -> list[Problem]:
     from kernelpilot.suites import suite_problems
 
     if suite:
@@ -73,17 +80,27 @@ def _summary_table(summary: dict) -> Table:
         t.add_column(col, justify="right" if col not in ("problem", "best config") else "left")
     for p in summary["problems"]:
         sp = p.get("speedup")
-        t.add_row(p["problem"], _ms(p.get("baseline_p50")), _ms(p.get("best_p50")),
-                  f"[green]{sp:.2f}x[/]" if sp and sp > 1.01 else (f"{sp:.2f}x" if sp else "-"),
-                  p.get("best_label") or "-", str(p["evaluated"]), str(p["compile_failed"] + p["invalid"]))
+        t.add_row(
+            p["problem"],
+            _ms(p.get("baseline_p50")),
+            _ms(p.get("best_p50")),
+            f"[green]{sp:.2f}x[/]" if sp and sp > 1.01 else (f"{sp:.2f}x" if sp else "-"),
+            p.get("best_label") or "-",
+            str(p["evaluated"]),
+            str(p["compile_failed"] + p["invalid"]),
+        )
     return t
 
 
 def _print_summary(exp_id: str, summary: dict) -> None:
     console.print(_summary_table(summary))
     gm = summary.get("geomean_speedup")
-    console.print(f"geomean speedup [bold]{gm:.3f}x[/] over {summary['geomean_over']}/{summary['problems_total']} "
-                  f"problems (vs untuned Triton, verified candidates only)" if gm else "no verified speedups")
+    console.print(
+        f"geomean speedup [bold]{gm:.3f}x[/] over {summary['geomean_over']}/{summary['problems_total']} "
+        f"problems (vs untuned Triton, verified candidates only)"
+        if gm
+        else "no verified speedups"
+    )
     if summary.get("simulated"):
         console.print(SIM_NOTE)
     console.print(f"experiment [cyan]{exp_id}[/]  ->  kernelpilot report {exp_id}")
@@ -107,8 +124,11 @@ def doctor(backend: Backend = None) -> None:
     for p in env.probes:
         t.add_row(p.name, "[green]yes[/]" if p.ok else "[red]no[/]", escape(p.detail))
     ok, why = llm_available(s.llm_provider)
-    t.add_row("llm planner", "[green]yes[/]" if ok else "[yellow]no[/]",
-              f"{s.llm_provider}" if ok else f"{why} (heuristic planner will be used)")
+    t.add_row(
+        "llm planner",
+        "[green]yes[/]" if ok else "[yellow]no[/]",
+        f"{s.llm_provider}" if ok else f"{why} (heuristic planner will be used)",
+    )
     console.print(t)
     choice = s.backend if s.backend != "auto" else ("triton" if env.can_run_triton else "sim")
     console.print(f"backend: [bold]{choice}[/]" + ("" if env.can_run_triton else "  " + SIM_NOTE))
@@ -126,9 +146,15 @@ def list_kernels() -> None:
         t.add_column("searchable")
         t.add_column("notes")
         for v in spec.variants.values():
-            t.add_row(v.name, "yes" if v.searchable else "[dim]no (deliberately broken)[/]", v.summary)
+            t.add_row(
+                v.name, "yes" if v.searchable else "[dim]no (deliberately broken)[/]", v.summary
+            )
         console.print(t)
-        console.print("  default shapes: " + ", ".join("x".join(map(str, s)) for s in spec.default_shapes) + "\n")
+        console.print(
+            "  default shapes: "
+            + ", ".join("x".join(map(str, s)) for s in spec.default_shapes)
+            + "\n"
+        )
     for name, keys in SUITES.items():
         console.print(f"suite [bold]{name}[/] ({len(keys)} problems): " + ", ".join(keys))
 
@@ -138,7 +164,9 @@ def test(
     op: str,
     shape: Shape = None,
     dtype: Dtype = None,
-    all_variants: Annotated[bool, typer.Option("--all-variants", help="include the broken variants")] = False,
+    all_variants: Annotated[
+        bool, typer.Option("--all-variants", help="include the broken variants")
+    ] = False,
     backend: Backend = None,
 ) -> None:
     """Correctness check of every variant against the fp64 reference."""
@@ -162,19 +190,29 @@ def test(
             cfg = spec.baseline(p).replace(variant=v.name)
             if spec.check(cfg, p):
                 grid = spec.space(p).get(v.name)
-                cfg = next((c for c in spec.configs(p) if c.variant == v.name), cfg) if grid else cfg
+                cfg = (
+                    next((c for c in spec.configs(p) if c.variant == v.name), cfg) if grid else cfg
+                )
             cand = Candidate.from_config(p, cfg)
             comp = ctx.backend.compile(cand)
             if not comp.ok:
-                t.add_row(p.key, v.name, f"[red]{comp.error_kind}[/]", (comp.error or "")[:60], "", "")
+                t.add_row(
+                    p.key, v.name, f"[red]{comp.error_kind}[/]", (comp.error or "")[:60], "", ""
+                )
                 failed += v.searchable
                 continue
             val = ctx.backend.validate(cand, s.seed)
             w = val.worst
             status = "[green]pass[/]" if val.ok else f"[red]{val.status}[/]"
             failed += (not val.ok) and v.searchable
-            t.add_row(p.key, v.name, "ok", status, f"{w.max_abs_err:.2e}" if w else "-",
-                      f"{w.max_rel_err:.2e}" if w else "-")
+            t.add_row(
+                p.key,
+                v.name,
+                "ok",
+                status,
+                f"{w.max_abs_err:.2e}" if w else "-",
+                f"{w.max_rel_err:.2e}" if w else "-",
+            )
     console.print(t)
     if ctx.backend.simulated:
         console.print(SIM_NOTE)
@@ -197,8 +235,15 @@ def benchmark(
     ctx = _ctx(s)
     problems = _problems(op, shape, dtype, None)
     spec = get_spec(op)
-    sess = Session(ctx.store, ctx.backend, s, ctx.env, name=f"benchmark {op}", strategy="benchmark",
-                   target=problems)
+    sess = Session(
+        ctx.store,
+        ctx.backend,
+        s,
+        ctx.env,
+        name=f"benchmark {op}",
+        strategy="benchmark",
+        target=problems,
+    )
     t = Table(title=f"{op} benchmark", title_justify="left")
     for col in ("problem", "candidate", "status", "compile", "p50", "p95", "speedup"):
         t.add_column(col)
@@ -212,9 +257,15 @@ def benchmark(
                     evs.append(sess.evaluate(Candidate.from_config(p, cfg, origin="manual")))
         for ev in evs:
             sp = sess.speedup(ev)
-            t.add_row(p.key, ev.candidate.label, ev.status,
-                      f"{ev.compile.compile_ms:.0f} ms" if ev.compile and ev.compile.compile_ms else "-",
-                      _ms(ev.p50), _ms(ev.p95), f"{sp:.2f}x" if sp else "-")
+            t.add_row(
+                p.key,
+                ev.candidate.label,
+                ev.status,
+                f"{ev.compile.compile_ms:.0f} ms" if ev.compile and ev.compile.compile_ms else "-",
+                _ms(ev.p50),
+                _ms(ev.p95),
+                f"{sp:.2f}x" if sp else "-",
+            )
     sess.finish()
     console.print(t)
     if ctx.backend.simulated:
@@ -225,7 +276,9 @@ def benchmark(
 @app.command()
 def optimize(
     op: Annotated[str | None, typer.Argument(help="operator, or omit and use --suite")] = None,
-    strategy: Annotated[str, typer.Option("--strategy", help="agent | grid | random | halving")] = "agent",
+    strategy: Annotated[
+        str, typer.Option("--strategy", help="agent | grid | random | halving")
+    ] = "agent",
     budget: Annotated[int, typer.Option(help="candidates per problem")] = 8,
     shape: Shape = None,
     dtype: Dtype = None,
@@ -242,10 +295,14 @@ def optimize(
     s = _settings(backend, seed=seed, reps=reps)
     ctx = _ctx(s)
     problems = _problems(op, shape, dtype, suite)
-    console.print(f"[bold]{strategy}[/] on {len(problems)} problem(s), budget {budget}, backend {ctx.backend.describe()}")
+    console.print(
+        f"[bold]{strategy}[/] on {len(problems)} problem(s), budget {budget}, backend {ctx.backend.describe()}"
+    )
     with console.status("optimizing..."):
         try:
-            exp_id, summary = run_experiment(ctx, problems, strategy, budget, name=name, planner=planner)
+            exp_id, summary = run_experiment(
+                ctx, problems, strategy, budget, name=name, planner=planner
+            )
         except (ValueError, RuntimeError) as exc:
             console.print(f"[red]error:[/] {exc}")
             raise typer.Exit(2) from exc
@@ -259,7 +316,9 @@ def bakeoff(
     shape: Shape = None,
     dtype: Dtype = None,
     suite: Annotated[str | None, typer.Option(help="quick | standard | full")] = None,
-    baselines: Annotated[str, typer.Option(help="comma-separated autotuner strategies")] = "grid,random",
+    baselines: Annotated[
+        str, typer.Option(help="comma-separated autotuner strategies")
+    ] = "grid,random",
     planner: str = "auto",
     backend: Backend = None,
 ) -> None:
@@ -275,8 +334,11 @@ def bakeoff(
         with console.status(f"running {strat}..."):
             ids[strat], summary = run_experiment(ctx, problems, strat, budget, planner=planner)
         gm = summary.get("geomean_speedup")
-        console.print(f"{strat:8s} geomean {gm:.3f}x  ({summary['candidates']} candidates)  [cyan]{ids[strat]}[/]"
-                      if gm else f"{strat}: no verified speedup")
+        console.print(
+            f"{strat:8s} geomean {gm:.3f}x  ({summary['candidates']} candidates)  [cyan]{ids[strat]}[/]"
+            if gm
+            else f"{strat}: no verified speedup"
+        )
     for strat, eid in ids.items():
         if strat != "agent":
             _print_comparison(compare_experiments(ctx.store, ids["agent"], eid))
@@ -286,29 +348,49 @@ def bakeoff(
 
 def _print_comparison(cmp: dict) -> None:
     a, b = cmp["a"], cmp["b"]
-    t = Table(title=f"{a['strategy']} ({a['id']})  vs  {b['strategy']} ({b['id']})", title_justify="left")
-    for col in ("problem", f"{a['strategy']} speedup", f"{b['strategy']} speedup",
-                "evals to best (a/b)", "failures (a/b)", "winner"):
+    t = Table(
+        title=f"{a['strategy']} ({a['id']})  vs  {b['strategy']} ({b['id']})", title_justify="left"
+    )
+    for col in (
+        "problem",
+        f"{a['strategy']} speedup",
+        f"{b['strategy']} speedup",
+        "evals to best (a/b)",
+        "failures (a/b)",
+        "winner",
+    ):
         t.add_column(col)
     for r in cmp["rows"]:
         win = {a["id"]: a["strategy"], b["id"]: b["strategy"]}.get(r["winner"], r["winner"] or "-")
-        t.add_row(r["problem"], f"{r['a_speedup']:.2f}x" if r["a_speedup"] else "-",
-                  f"{r['b_speedup']:.2f}x" if r["b_speedup"] else "-",
-                  f"{r['a_evals_to_best'] or '-'}/{r['b_evals_to_best'] or '-'}",
-                  f"{r['a_failures']}/{r['b_failures']}", win)
+        t.add_row(
+            r["problem"],
+            f"{r['a_speedup']:.2f}x" if r["a_speedup"] else "-",
+            f"{r['b_speedup']:.2f}x" if r["b_speedup"] else "-",
+            f"{r['a_evals_to_best'] or '-'}/{r['b_evals_to_best'] or '-'}",
+            f"{r['a_failures']}/{r['b_failures']}",
+            win,
+        )
     console.print(t)
     ga, gb = cmp["a_geomean_shared"], cmp["b_geomean_shared"]
     if ga and gb:
-        console.print(f"geomean: {a['strategy']} {ga:.3f}x, {b['strategy']} {gb:.3f}x; wins {cmp['a_wins']}-"
-                      f"{cmp['b_wins']} ({cmp['ties']} ties)")
+        console.print(
+            f"geomean: {a['strategy']} {ga:.3f}x, {b['strategy']} {gb:.3f}x; wins {cmp['a_wins']}-"
+            f"{cmp['b_wins']} ({cmp['ties']} ties)"
+        )
     if cmp["mixed_backends"]:
-        console.print("[red]warning:[/] one experiment is simulated and the other is not; don't compare them")
+        console.print(
+            "[red]warning:[/] one experiment is simulated and the other is not; don't compare them"
+        )
 
 
 @app.command()
 def compare(
-    a: Annotated[str | None, typer.Argument(help="experiment id (default: latest agent run)")] = None,
-    b: Annotated[str | None, typer.Argument(help="experiment id (default: latest non-agent run)")] = None,
+    a: Annotated[
+        str | None, typer.Argument(help="experiment id (default: latest agent run)")
+    ] = None,
+    b: Annotated[
+        str | None, typer.Argument(help="experiment id (default: latest non-agent run)")
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """Compare two experiments problem by problem."""
@@ -320,7 +402,9 @@ def compare(
     ea = store.experiment(a) if a else store.latest("agent")
     eb = store.experiment(b) if b else store.latest(exclude_strategy="agent")
     if not ea or not eb:
-        console.print("[red]need two finished experiments[/] (run `kernelpilot bakeoff softmax` first)")
+        console.print(
+            "[red]need two finished experiments[/] (run `kernelpilot bakeoff softmax` first)"
+        )
         raise typer.Exit(1)
     cmp = compare_experiments(store, ea["id"], eb["id"])
     if as_json:
@@ -371,14 +455,26 @@ def runs(limit: int = 20) -> None:
     for e in store.experiments(limit):
         summ = e.get("summary") or {}
         gm = summ.get("geomean_speedup")
-        t.add_row(e["id"], e["name"], e["strategy"], e["status"], f"{gm:.3f}x" if gm else "-",
-                  str(summ.get("candidates", "-")), e["backend"] + (" (sim)" if e["simulated"] else ""))
+        t.add_row(
+            e["id"],
+            e["name"],
+            e["strategy"],
+            e["status"],
+            f"{gm:.3f}x" if gm else "-",
+            str(summ.get("candidates", "-")),
+            e["backend"] + (" (sim)" if e["simulated"] else ""),
+        )
     console.print(t)
 
 
 @app.command()
 def demo(
-    scenario: Annotated[str, typer.Option(help="success | invalid-kernel | compile-failure | bad-source | regression | all")] = "all",
+    scenario: Annotated[
+        str,
+        typer.Option(
+            help="success | invalid-kernel | compile-failure | bad-source | regression | all"
+        ),
+    ] = "all",
     out: Annotated[Path, typer.Option(help="where to write reports")] = Path("reports/demo"),
 ) -> None:
     """Run the deterministic, simulated walkthrough (no GPU, no API key)."""
@@ -391,8 +487,13 @@ def demo(
     ctx = _ctx(s)
     names = list(SCENARIOS) if scenario == "all" else [scenario]
     out.mkdir(parents=True, exist_ok=True)
-    console.print(Panel(SIM_NOTE + "\nEvery step below runs through the real planner, tools, store and reports.",
-                        title="KernelPilot demo"))
+    console.print(
+        Panel(
+            SIM_NOTE
+            + "\nEvery step below runs through the real planner, tools, store and reports.",
+            title="KernelPilot demo",
+        )
+    )
     for n in names:
         sc = SCENARIOS.get(n)
         if sc is None:
@@ -400,16 +501,24 @@ def demo(
         console.rule(f"[bold]{sc.title}")
         console.print(f"[dim]{sc.blurb}[/]")
         problem = Problem.parse(sc.problem)
-        exp_id, summary = run_experiment(ctx, [problem], "agent", sc.budget, name=f"demo/{sc.name}",
-                                         planner="heuristic", opening=sc.opening or None)
+        exp_id, summary = run_experiment(
+            ctx,
+            [problem],
+            "agent",
+            sc.budget,
+            name=f"demo/{sc.name}",
+            planner="heuristic",
+            opening=sc.opening or None,
+        )
         _narrate(ctx.store, exp_id)
         _print_summary(exp_id, summary)
         rep = build_report(ctx.store, exp_id)
         (out / f"{sc.name}.md").write_text(to_markdown(rep))
         (out / f"{sc.name}.html").write_text(to_html(rep))
         if sc.compare_with:
-            other_id, _ = run_experiment(ctx, [problem], sc.compare_with, sc.budget,
-                                         name=f"demo/{sc.name}-{sc.compare_with}")
+            other_id, _ = run_experiment(
+                ctx, [problem], sc.compare_with, sc.budget, name=f"demo/{sc.name}-{sc.compare_with}"
+            )
             _print_comparison(compare_experiments(ctx.store, exp_id, other_id))
     console.print(f"\nreports in {out}/  ·  dashboard: kernelpilot serve")
 
@@ -422,7 +531,10 @@ def _narrate(store, exp_id: str) -> None:
         if k not in style:
             continue
         cand = labels.get(d["candidate_id"] or "", "")
-        console.print(f"  [{style[k]}]{k:10s}[/] {d['rationale']}" + (f"  [dim]{cand}[/]" if cand and k == "hypothesis" else ""))
+        console.print(
+            f"  [{style[k]}]{k:10s}[/] {d['rationale']}"
+            + (f"  [dim]{cand}[/]" if cand and k == "hypothesis" else "")
+        )
 
 
 @app.command()

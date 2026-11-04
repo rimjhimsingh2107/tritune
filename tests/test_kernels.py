@@ -27,7 +27,9 @@ def test_baseline_is_valid_and_correct(op, dtype):
     cfg = spec.baseline(p)
     assert spec.check(cfg, p) == []
     inputs = spec.make_inputs(p)
-    check = compare(spec.emulate(cfg, inputs, p), spec.reference(inputs, p), spec.tolerance(p), p.key)
+    check = compare(
+        spec.emulate(cfg, inputs, p), spec.reference(inputs, p), spec.tolerance(p), p.key
+    )
     assert check.ok, check
 
 
@@ -88,7 +90,9 @@ def test_naive_softmax_overflows_in_fp16_but_not_fp32():
         p = Problem("softmax", (64, 512), dtype)
         inputs = spec.make_inputs(p)
         cfg = KernelConfig("naive", {"BLOCK_N": 512})
-        check = compare(spec.emulate(cfg, inputs, p), spec.reference(inputs, p), spec.tolerance(p), p.key)
+        check = compare(
+            spec.emulate(cfg, inputs, p), spec.reference(inputs, p), spec.tolerance(p), p.key
+        )
         assert check.ok is should_pass
         if not should_pass:
             assert check.nan_count > 0
@@ -100,7 +104,9 @@ def test_unmasked_add_only_breaks_on_ragged_sizes():
     for n, should_pass in [(4096, True), (4100, False)]:
         p = Problem("vector_add", (n,))
         inputs = spec.make_inputs(p)
-        check = compare(spec.emulate(cfg, inputs, p), spec.reference(inputs, p), spec.tolerance(p), p.key)
+        check = compare(
+            spec.emulate(cfg, inputs, p), spec.reference(inputs, p), spec.tolerance(p), p.key
+        )
         assert check.ok is should_pass
 
 
@@ -123,7 +129,9 @@ def test_fp16_accumulators_fail_tolerance():
 def test_check_catches_bad_launch_params():
     mm = get_spec("matmul")
     p = Problem("matmul", (64, 64, 64), "fp16")
-    bad = KernelConfig("tiled", {"BLOCK_M": 96, "BLOCK_N": 8, "BLOCK_K": 32, "GROUP_M": 1}, num_warps=3)
+    bad = KernelConfig(
+        "tiled", {"BLOCK_M": 96, "BLOCK_N": 8, "BLOCK_K": 32, "GROUP_M": 1}, num_warps=3
+    )
     errs = " ".join(mm.check(bad, p))
     assert "BLOCK_M=96" in errs
     assert "num_warps=3" in errs

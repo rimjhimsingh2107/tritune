@@ -77,8 +77,13 @@ def _compile(source: str, problem: Problem) -> dict[str, Any]:
     warnings = [w.render() for w in report.warnings]
     if not report.ok:
         kind = "syntax" if report.syntax_error else "lint"
-        return {"ok": False, "error": report.error_text(), "error_kind": kind,
-                "log": "\n".join(warnings), "simulated": True}
+        return {
+            "ok": False,
+            "error": report.error_text(),
+            "error_kind": kind,
+            "log": "\n".join(warnings),
+            "simulated": True,
+        }
 
     spec = get_spec(problem.op)
     cfg = identify(source, problem)
@@ -86,17 +91,26 @@ def _compile(source: str, problem: Problem) -> dict[str, Any]:
         return {
             "ok": True,
             "simulated": True,
-            "log": "\n".join([*warnings, "kernel body not recognised by the simulator; "
-                              "resource/timing model unavailable"]),
+            "log": "\n".join(
+                [
+                    *warnings,
+                    "kernel body not recognised by the simulator; "
+                    "resource/timing model unavailable",
+                ]
+            ),
             "metadata": {"model": perf_model.MODEL_VERSION, "recognised": False},
             "compile_ms": None,
         }
 
     problems = spec.check(cfg, problem)
     if problems:
-        return {"ok": False, "error_kind": "launch", "simulated": True,
-                "error": "launch constraint violated: " + "; ".join(problems),
-                "log": "\n".join(warnings)}
+        return {
+            "ok": False,
+            "error_kind": "launch",
+            "simulated": True,
+            "error": "launch constraint violated: " + "; ".join(problems),
+            "log": "\n".join(warnings),
+        }
 
     res = spec.resources(cfg, problem)
     if res.smem_bytes > DEVICE.smem_per_block:
@@ -168,11 +182,14 @@ def _emulated_check(cfg: KernelConfig, p: Problem, seed: int) -> Check:
 def _validate(source: str, problem: Problem, seed: int) -> dict[str, Any]:
     comp = _compile(source, problem)
     if not comp["ok"]:
-        return ValidationResult(False, status="error", error=f"does not compile: {comp['error']}").to_dict()
+        return ValidationResult(
+            False, status="error", error=f"does not compile: {comp['error']}"
+        ).to_dict()
     cfg = identify(source, problem)
     if cfg is None:
         return ValidationResult(
-            False, status="unverified",
+            False,
+            status="unverified",
             error="simulated backend can't emulate an unrecognised kernel body",
         ).to_dict()
 
@@ -182,8 +199,20 @@ def _validate(source: str, problem: Problem, seed: int) -> dict[str, Any]:
     for p in targets:
         issues = spec.check(cfg, p)
         if issues:
-            checks.append(Check(p.key, False, float("inf"), float("inf"), 1.0, 0, 0, 0.0, 0.0,
-                                message="launch fails: " + "; ".join(issues)))
+            checks.append(
+                Check(
+                    p.key,
+                    False,
+                    float("inf"),
+                    float("inf"),
+                    1.0,
+                    0,
+                    0,
+                    0.0,
+                    0.0,
+                    message="launch fails: " + "; ".join(issues),
+                )
+            )
             continue
         checks.append(_emulated_check(cfg, p, seed))
     ok = all(c.ok for c in checks)
@@ -196,13 +225,21 @@ def _benchmark(source: str, problem: Problem, warmup: int, reps: int) -> dict[st
         return {"ok": False, "error": f"does not compile: {comp['error']}", "simulated": True}
     cfg = identify(source, problem)
     if cfg is None:
-        return {"ok": False, "simulated": True,
-                "error": "no timing model for an unrecognised kernel body"}
+        return {
+            "ok": False,
+            "simulated": True,
+            "error": "no timing model for an unrecognised kernel body",
+        }
     spec = get_spec(problem.op)
     pred = perf_model.predict(spec, cfg, problem, DEVICE)
     samples = perf_model.noisy_samples(pred.time_s, source + problem.key, reps)
-    return {"ok": True, "samples_ms": samples, "warmup": warmup, "simulated": True,
-            "method": f"simulated ({perf_model.MODEL_VERSION}, seeded noise)"}
+    return {
+        "ok": True,
+        "samples_ms": samples,
+        "warmup": warmup,
+        "simulated": True,
+        "method": f"simulated ({perf_model.MODEL_VERSION}, seeded noise)",
+    }
 
 
 def _profile(source: str, problem: Problem) -> dict[str, Any]:

@@ -9,7 +9,9 @@ from kernelpilot.session import Session
 
 
 def new_session(store, backend, settings, env, problem):
-    return Session(store, backend, settings, env, name="agent test", strategy="agent", target=[problem])
+    return Session(
+        store, backend, settings, env, name="agent test", strategy="agent", target=[problem]
+    )
 
 
 def kinds(store, exp_id, kind):
@@ -22,9 +24,19 @@ def test_tool_schemas_are_json_schema():
         assert s["input_schema"]["type"] == "object"
         assert s["description"]
     names = {t.name for t in TOOLS}
-    assert {"inspect_kernel", "generate_candidate", "compile_candidate", "validate_correctness",
-            "benchmark_candidate", "inspect_ptx", "inspect_compiler_metadata", "profile_candidate",
-            "compare_candidates", "recommend_optimization", "save_experiment"} <= names
+    assert {
+        "inspect_kernel",
+        "generate_candidate",
+        "compile_candidate",
+        "validate_correctness",
+        "benchmark_candidate",
+        "inspect_ptx",
+        "inspect_compiler_metadata",
+        "profile_candidate",
+        "compare_candidates",
+        "recommend_optimization",
+        "save_experiment",
+    } <= names
 
 
 def test_heuristic_agent_fixes_spills(store, backend, settings, env):
@@ -35,7 +47,9 @@ def test_heuristic_agent_fixes_spills(store, backend, settings, env):
     assert out.speedup and out.speedup > 2.0
     assert out.candidates <= 5
     first = kinds(store, sess.exp_id, "hypothesis")[0]
-    assert "spill" in first["rationale"] or any(e.get("kind") == "spills" for e in first["evidence"] or [])
+    assert "spill" in first["rationale"] or any(
+        e.get("kind") == "spills" for e in first["evidence"] or []
+    )
     assert kinds(store, sess.exp_id, "accept")
     assert kinds(store, sess.exp_id, "final")
     assert summary["problems"][0]["speedup"] == out.speedup
@@ -57,8 +71,14 @@ def test_recovers_from_numerical_failure(store, backend, settings, env):
 
 def test_repairs_shared_memory_overflow(store, backend, settings, env):
     p = Problem("matmul", (2048, 2048, 2048), "fp16")
-    opening = [{"params": {"BLOCK_M": 256, "BLOCK_N": 256, "BLOCK_K": 64}, "num_stages": 4, "num_warps": 8,
-                "hypothesis": "max out the tile for arithmetic intensity"}]
+    opening = [
+        {
+            "params": {"BLOCK_M": 256, "BLOCK_N": 256, "BLOCK_K": 64},
+            "num_stages": 4,
+            "num_warps": 8,
+            "hypothesis": "max out the tile for arithmetic intensity",
+        }
+    ]
     sess = new_session(store, backend, settings, env, p)
     out = AgentRunner(sess, HeuristicPlanner(opening=opening), AgentBudget(max_candidates=6)).run(p)
     sess.finish()
@@ -71,8 +91,14 @@ def test_repairs_shared_memory_overflow(store, backend, settings, env):
 
 def test_regression_is_rejected_and_incumbent_kept(store, backend, settings, env):
     p = Problem("reduction", (1 << 24,), "fp32")
-    opening = [{"params": {"BLOCK_SIZE": 8192}, "num_warps": 2, "num_stages": 1,
-                "hypothesis": "bigger blocks, fewer warps"}]
+    opening = [
+        {
+            "params": {"BLOCK_SIZE": 8192},
+            "num_warps": 2,
+            "num_stages": 1,
+            "hypothesis": "bigger blocks, fewer warps",
+        }
+    ]
     sess = new_session(store, backend, settings, env, p)
     AgentRunner(sess, HeuristicPlanner(opening=opening), AgentBudget(max_candidates=3)).run(p)
     summary = sess.finish()
@@ -109,14 +135,27 @@ def test_tool_errors_are_returned_not_raised(store, backend, settings, env):
     assert "unknown tool" in reg.call("rm_rf", {}).error
     assert "invalid arguments" in reg.call("benchmark_candidate", {"reps": 3}).error
     assert "no candidate" in reg.call("compile_candidate", {"candidate_id": "nope"}).error
-    bad = reg.call("generate_candidate", {"variant": "warp_specialized", "hypothesis": "x",
-                                          "base_candidate_id": sess.order[0]})
+    bad = reg.call(
+        "generate_candidate",
+        {"variant": "warp_specialized", "hypothesis": "x", "base_candidate_id": sess.order[0]},
+    )
     assert not bad.ok and "no variant" in bad.error
-    assert "no change" in reg.call("generate_candidate", {"hypothesis": "nothing",
-                                                         "base_candidate_id": sess.order[0]}).error
+    assert (
+        "no change"
+        in reg.call(
+            "generate_candidate", {"hypothesis": "nothing", "base_candidate_id": sess.order[0]}
+        ).error
+    )
     # benchmarking something that doesn't validate is refused
-    gen = reg.call("generate_candidate", {"variant": "unmasked", "params": {"BLOCK_SIZE": 512},
-                                          "hypothesis": "skip masks", "base_candidate_id": sess.order[0]})
+    gen = reg.call(
+        "generate_candidate",
+        {
+            "variant": "unmasked",
+            "params": {"BLOCK_SIZE": 512},
+            "hypothesis": "skip masks",
+            "base_candidate_id": sess.order[0],
+        },
+    )
     assert gen.ok
     # 4096 % 512 == 0, so the unmasked add is valid here, but edge shapes catch it
     v = reg.call("validate_correctness", {"candidate_id": gen.content["candidate_id"]})
@@ -197,23 +236,48 @@ def test_llm_planner_path_with_fake_provider(store, backend, settings, env):
     def pipeline(results):
         base_id["id"] = results[0].content["candidate_id"]
         b = base_id["id"]
-        return Reply("baseline pipeline", [ToolCall("compile_candidate", {"candidate_id": b}, "t2"),
-                                           ToolCall("validate_correctness", {"candidate_id": b}, "t3"),
-                                           ToolCall("benchmark_candidate", {"candidate_id": b}, "t4")], "tool_use")
+        return Reply(
+            "baseline pipeline",
+            [
+                ToolCall("compile_candidate", {"candidate_id": b}, "t2"),
+                ToolCall("validate_correctness", {"candidate_id": b}, "t3"),
+                ToolCall("benchmark_candidate", {"candidate_id": b}, "t4"),
+            ],
+            "tool_use",
+        )
 
     def gen(_):
-        return Reply("spills; more warps", [ToolCall("generate_candidate", {"num_warps": 16, "hypothesis": "h"}, "t5"),
-                                            ToolCall("not_a_tool", {}, "t6")], "tool_use")
+        return Reply(
+            "spills; more warps",
+            [
+                ToolCall("generate_candidate", {"num_warps": 16, "hypothesis": "h"}, "t5"),
+                ToolCall("not_a_tool", {}, "t6"),
+            ],
+            "tool_use",
+        )
 
     def evaluate(results):
         cid = results[0].content["candidate_id"]
         assert results[1].ok is False
-        return Reply("evaluate", [ToolCall("compile_candidate", {"candidate_id": cid}, "t7"),
-                                  ToolCall("validate_correctness", {"candidate_id": cid}, "t8"),
-                                  ToolCall("benchmark_candidate", {"candidate_id": cid}, "t9")], "tool_use")
+        return Reply(
+            "evaluate",
+            [
+                ToolCall("compile_candidate", {"candidate_id": cid}, "t7"),
+                ToolCall("validate_correctness", {"candidate_id": cid}, "t8"),
+                ToolCall("benchmark_candidate", {"candidate_id": cid}, "t9"),
+            ],
+            "tool_use",
+        )
 
-    provider = FakeProvider([first, pipeline, gen, evaluate,
-                             Reply("done", [ToolCall("save_experiment", {"summary": "warps fixed spills"}, "t10")])])
+    provider = FakeProvider(
+        [
+            first,
+            pipeline,
+            gen,
+            evaluate,
+            Reply("done", [ToolCall("save_experiment", {"summary": "warps fixed spills"}, "t10")]),
+        ]
+    )
     out = AgentRunner(sess, LLMPlanner(provider), AgentBudget(max_candidates=3)).run(p)
     sess.finish()
     assert out.stop_reason == "saved by planner"
@@ -253,6 +317,11 @@ def test_idle_planner_stops(store, backend, settings, env):
 def test_consecutive_errors_abort(store, backend, settings, env):
     p = Problem("vector_add", (4096,), "fp32")
     sess = new_session(store, backend, settings, env, p)
-    bad = [Reply("oops", [ToolCall("compile_candidate", {"candidate_id": "missing"}, f"x{i}")]) for i in range(10)]
-    out = AgentRunner(sess, LLMPlanner(FakeProvider(bad)), AgentBudget(max_consecutive_errors=3)).run(p)
+    bad = [
+        Reply("oops", [ToolCall("compile_candidate", {"candidate_id": "missing"}, f"x{i}")])
+        for i in range(10)
+    ]
+    out = AgentRunner(
+        sess, LLMPlanner(FakeProvider(bad)), AgentBudget(max_consecutive_errors=3)
+    ).run(p)
     assert "consecutive" in out.stop_reason

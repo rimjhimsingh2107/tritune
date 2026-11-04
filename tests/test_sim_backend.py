@@ -132,11 +132,15 @@ class TestSubprocessIsolation:
         assert b.validate(c).ok
 
     def test_timeout_kills_worker(self):
-        res = SubprocessExecutor().run({"_sleep": 30, "engine": "sim", "action": "compile"}, timeout=1.5)
+        res = SubprocessExecutor().run(
+            {"_sleep": 30, "engine": "sim", "action": "compile"}, timeout=1.5
+        )
         assert res["ok"] is False and res["error_kind"] == "timeout"
 
     def test_hard_crash_is_reported(self):
-        res = SubprocessExecutor().run({"_crash": 3, "engine": "sim", "action": "compile"}, timeout=30)
+        res = SubprocessExecutor().run(
+            {"_crash": 3, "engine": "sim", "action": "compile"}, timeout=30
+        )
         assert res["error_kind"] == "crash" and "code 3" in res["error"]
 
     def test_secrets_are_not_passed_down(self, monkeypatch):

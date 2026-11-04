@@ -41,7 +41,9 @@ class Settings:
     isolation: str = field(default_factory=lambda: _env("KP_ISOLATION", ""))
     timeout_s: float = field(default_factory=lambda: _env_float("KP_TIMEOUT", 120.0))
     seed: int = field(default_factory=lambda: _env_int("KP_SEED", 0))
-    use_cache: bool = field(default_factory=lambda: _env("KP_CACHE", "1") not in ("0", "false", "no"))
+    use_cache: bool = field(
+        default_factory=lambda: _env("KP_CACHE", "1") not in ("0", "false", "no")
+    )
     warmup: int = field(default_factory=lambda: _env_int("KP_WARMUP", 10))
     reps: int = field(default_factory=lambda: _env_int("KP_REPS", 50))
     # none | anthropic | openai
@@ -56,7 +58,9 @@ class Settings:
         if self.backend not in ("auto", "triton", "sim"):
             raise ValueError(f"KP_BACKEND must be auto, triton or sim (got {self.backend!r})")
         if self.isolation not in ("", "subprocess", "inprocess"):
-            raise ValueError(f"KP_ISOLATION must be subprocess or inprocess (got {self.isolation!r})")
+            raise ValueError(
+                f"KP_ISOLATION must be subprocess or inprocess (got {self.isolation!r})"
+            )
 
     def ensure_home(self) -> None:
         self.home.mkdir(parents=True, exist_ok=True)

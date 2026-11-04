@@ -67,11 +67,15 @@ def _result_text(r: ToolResult) -> str:
 class AnthropicProvider:
     """Claude via the official SDK, manual tool-use loop."""
 
-    def __init__(self, model: str | None = None, max_tokens: int = 16000, fallbacks: bool | None = None):
+    def __init__(
+        self, model: str | None = None, max_tokens: int = 16000, fallbacks: bool | None = None
+    ):
         try:
             import anthropic
         except ImportError as exc:
-            raise RuntimeError("pip install 'kernelpilot[anthropic]' to use the Anthropic provider") from exc
+            raise RuntimeError(
+                "pip install 'kernelpilot[anthropic]' to use the Anthropic provider"
+            ) from exc
         self.client = anthropic.Anthropic()
         self.model = model or "claude-opus-5-5"
         self.max_tokens = max_tokens
@@ -105,19 +109,27 @@ class AnthropicProvider:
 
     def step(self, results: list[ToolResult]) -> Reply:
         if results:
-            self.messages.append({
-                "role": "user",
-                "content": [
-                    {"type": "tool_result", "tool_use_id": r.call_id, "content": _result_text(r),
-                     **({"is_error": True} if not r.ok else {})}
-                    for r in results
-                ],
-            })
+            self.messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": r.call_id,
+                            "content": _result_text(r),
+                            **({"is_error": True} if not r.ok else {}),
+                        }
+                        for r in results
+                    ],
+                }
+            )
         resp = self._create()
         # keep the full content (incl. thinking blocks) so the next turn is valid
         self.messages.append({"role": "assistant", "content": resp.content})
         text = "".join(getattr(b, "text", "") for b in resp.content if b.type == "text")
-        calls = [ToolCall(b.name, dict(b.input), b.id) for b in resp.content if b.type == "tool_use"]
+        calls = [
+            ToolCall(b.name, dict(b.input), b.id) for b in resp.content if b.type == "tool_use"
+        ]
         if resp.stop_reason == "refusal":
             return Reply(text or "model declined to continue", [], "refusal")
         return Reply(text, calls, resp.stop_reason or "")
@@ -130,7 +142,9 @@ class OpenAIProvider:
         try:
             import openai
         except ImportError as exc:
-            raise RuntimeError("pip install 'kernelpilot[openai]' to use the OpenAI provider") from exc
+            raise RuntimeError(
+                "pip install 'kernelpilot[openai]' to use the OpenAI provider"
+            ) from exc
         self.model = model or os.environ.get("KP_LLM_MODEL") or ""
         if not self.model:
             raise RuntimeError("set KP_LLM_MODEL for the openai provider")
@@ -140,14 +154,30 @@ class OpenAIProvider:
         self.messages: list[dict[str, Any]] = []
 
     def reset(self, system: str, tools: list[dict[str, Any]], first_message: str) -> None:
-        self.tools = [{"type": "function", "function": {"name": t["name"], "description": t["description"],
-                                                        "parameters": t["input_schema"]}} for t in tools]
-        self.messages = [{"role": "system", "content": system}, {"role": "user", "content": first_message}]
+        self.tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "parameters": t["input_schema"],
+                },
+            }
+            for t in tools
+        ]
+        self.messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": first_message},
+        ]
 
     def step(self, results: list[ToolResult]) -> Reply:
         for r in results:
-            self.messages.append({"role": "tool", "tool_call_id": r.call_id, "content": _result_text(r)})
-        resp = self.client.chat.completions.create(model=self.model, messages=self.messages, tools=self.tools)
+            self.messages.append(
+                {"role": "tool", "tool_call_id": r.call_id, "content": _result_text(r)}
+            )
+        resp = self.client.chat.completions.create(
+            model=self.model, messages=self.messages, tools=self.tools
+        )
         msg = resp.choices[0].message
         self.messages.append(msg.model_dump(exclude_none=True))
         calls = []

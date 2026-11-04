@@ -44,7 +44,7 @@ def test_hallucinated_tl_function_and_numpy_call():
 
 
 def test_unsupported_constructs():
-    src = '''
+    src = """
 import triton
 import triton.language as tl
 
@@ -58,7 +58,7 @@ def k(x_ptr, n, BLOCK: tl.constexpr):
         tl.store(x_ptr, undefined_thing)
     except Exception:
         pass
-'''
+"""
     report = lint(src)
     text = report.error_text()
     assert "Break" in text

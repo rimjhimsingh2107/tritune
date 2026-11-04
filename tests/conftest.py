@@ -15,7 +15,9 @@ def env():
 
 @pytest.fixture
 def settings(tmp_path):
-    return load_settings(backend="sim", home=tmp_path, db_path=tmp_path / "kp.db", reps=20, warmup=2)
+    return load_settings(
+        backend="sim", home=tmp_path, db_path=tmp_path / "kp.db", reps=20, warmup=2
+    )
 
 
 @pytest.fixture

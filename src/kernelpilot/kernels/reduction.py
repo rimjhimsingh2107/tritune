@@ -46,7 +46,9 @@ class Reduction(KernelSpec):
     def reference(self, inputs: list[np.ndarray], problem: Problem) -> np.ndarray:
         return np.array([inputs[0].astype(np.float64).sum()])
 
-    def emulate(self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem) -> np.ndarray:
+    def emulate(
+        self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem
+    ) -> np.ndarray:
         x = inputs[0]
         if config.variant != "atomic_fp16acc" or problem.dtype == "fp32":
             return np.array([x.astype(np.float32).sum(dtype=np.float32)], dtype=np.float32)
@@ -75,7 +77,10 @@ class Reduction(KernelSpec):
         return Tolerance(atol=1e-3, rtol=2e-5)
 
     def edge_problems(self, problem: Problem) -> list[Problem]:
-        return [Problem(self.name, (1,), problem.dtype), Problem(self.name, (10007,), problem.dtype)]
+        return [
+            Problem(self.name, (1,), problem.dtype),
+            Problem(self.name, (10007,), problem.dtype),
+        ]
 
     def baseline(self, problem: Problem) -> KernelConfig:
         return KernelConfig("atomic", {"BLOCK_SIZE": 1024, "TILES": 1}, num_warps=4, num_stages=2)

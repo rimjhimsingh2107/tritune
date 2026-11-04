@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 import threading
@@ -101,8 +102,21 @@ CREATE TABLE IF NOT EXISTS decisions (
 CREATE INDEX IF NOT EXISTS idx_dec_exp ON decisions(experiment_id, id);
 """
 
-JSON_COLS = {"target", "params", "environment", "fingerprint", "summary", "config", "metadata",
-             "validation", "samples", "profile", "args", "result", "evidence"}
+JSON_COLS = {
+    "target",
+    "params",
+    "environment",
+    "fingerprint",
+    "summary",
+    "config",
+    "metadata",
+    "validation",
+    "samples",
+    "profile",
+    "args",
+    "result",
+    "evidence",
+}
 
 
 def _dumps(v: Any) -> str | None:
@@ -113,10 +127,8 @@ def _row(cur: sqlite3.Cursor, row: tuple) -> dict[str, Any]:
     out = {}
     for (name, *_), value in zip(cur.description, row, strict=True):
         if name in JSON_COLS and isinstance(value, str):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 value = json.loads(value)
-            except json.JSONDecodeError:
-                pass
         out[name] = value
     return out
 
@@ -133,7 +145,8 @@ class Store:
             self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.executescript(SCHEMA)
         self.conn.execute(
-            "INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),)
+            "INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', ?)",
+            (str(SCHEMA_VERSION),),
         )
         self.conn.commit()
         self._lock = threading.RLock()
@@ -164,8 +177,18 @@ class Store:
         self._exec(
             """INSERT INTO experiments (id, name, strategy, target, params, environment, fingerprint,
                backend, simulated, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (exp_id, name, strategy, _dumps(target), _dumps(params), _dumps(environment),
-             _dumps(fingerprint), backend, int(simulated), time.time()),
+            (
+                exp_id,
+                name,
+                strategy,
+                _dumps(target),
+                _dumps(params),
+                _dumps(environment),
+                _dumps(fingerprint),
+                backend,
+                int(simulated),
+                time.time(),
+            ),
         )
         return exp_id
 
@@ -179,7 +202,9 @@ class Store:
         row = self._exec("SELECT * FROM experiments WHERE id = ?", (exp_id,)).fetchone()
         if row is None:
             # allow unique prefixes, handy on the command line
-            rows = self._exec("SELECT * FROM experiments WHERE id LIKE ?", (exp_id + "%",)).fetchall()
+            rows = self._exec(
+                "SELECT * FROM experiments WHERE id LIKE ?", (exp_id + "%",)
+            ).fetchall()
             row = rows[0] if len(rows) == 1 else None
         return row
 
@@ -188,7 +213,9 @@ class Store:
             "SELECT * FROM experiments ORDER BY created_at DESC LIMIT ?", (limit,)
         ).fetchall()
 
-    def latest(self, strategy: str | None = None, exclude_strategy: str | None = None) -> dict[str, Any] | None:
+    def latest(
+        self, strategy: str | None = None, exclude_strategy: str | None = None
+    ) -> dict[str, Any] | None:
         sql, args = "SELECT * FROM experiments WHERE status != 'running'", []
         if strategy:
             sql += " AND strategy = ?"
@@ -207,15 +234,29 @@ class Store:
     def add_candidate(self, exp_id: str, cand: Candidate) -> int:
         with self._lock:
             seq = self.conn.execute(
-                "SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM candidates WHERE experiment_id = ?", (exp_id,)
+                "SELECT COALESCE(MAX(seq), 0) + 1 AS n FROM candidates WHERE experiment_id = ?",
+                (exp_id,),
             ).fetchone()["n"]
             self.conn.execute(
                 """INSERT INTO candidates (id, experiment_id, seq, problem, op, dtype, origin, parent_id,
                    config, label, source, source_hash, note, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (cand.id, exp_id, seq, cand.problem.key, cand.problem.op, cand.problem.dtype, cand.origin,
-                 cand.parent_id, _dumps(cand.config.to_dict() if cand.config else None), cand.label,
-                 cand.source, cand.source_hash, cand.note, time.time()),
+                (
+                    cand.id,
+                    exp_id,
+                    seq,
+                    cand.problem.key,
+                    cand.problem.op,
+                    cand.problem.dtype,
+                    cand.origin,
+                    cand.parent_id,
+                    _dumps(cand.config.to_dict() if cand.config else None),
+                    cand.label,
+                    cand.source,
+                    cand.source_hash,
+                    cand.note,
+                    time.time(),
+                ),
             )
             self.conn.commit()
         return seq
@@ -224,8 +265,17 @@ class Store:
         self._exec(
             """UPDATE candidates SET compile_ok = ?, compile_error = ?, compile_error_kind = ?,
                compile_ms = ?, compile_log = ?, compile_cached = ?, metadata = ?, ptx = ? WHERE id = ?""",
-            (int(r.ok), r.error, r.error_kind, r.compile_ms, r.log, int(r.cached), _dumps(r.metadata),
-             r.ptx, cand_id),
+            (
+                int(r.ok),
+                r.error,
+                r.error_kind,
+                r.compile_ms,
+                r.log,
+                int(r.cached),
+                _dumps(r.metadata),
+                r.ptx,
+                cand_id,
+            ),
         )
 
     def record_validation(self, cand_id: str, r: ValidationResult) -> None:
@@ -239,30 +289,51 @@ class Store:
             """UPDATE candidates SET bench_ok = ?, bench_error = ?, p50_ms = ?, p95_ms = ?, mean_ms = ?,
                std_ms = ?, min_ms = ?, max_ms = ?, samples = ?, bench_method = ?, bench_cached = ?
                WHERE id = ?""",
-            (int(r.ok), r.error, r.p50_ms, r.p95_ms, r.mean_ms, r.std_ms, r.min_ms, r.max_ms,
-             _dumps(r.samples_ms), r.method, int(r.cached), cand_id),
+            (
+                int(r.ok),
+                r.error,
+                r.p50_ms,
+                r.p95_ms,
+                r.mean_ms,
+                r.std_ms,
+                r.min_ms,
+                r.max_ms,
+                _dumps(r.samples_ms),
+                r.method,
+                int(r.cached),
+                cand_id,
+            ),
         )
 
     def record_profile(self, cand_id: str, r: ProfileResult) -> None:
         self._exec("UPDATE candidates SET profile = ? WHERE id = ?", (_dumps(r.to_dict()), cand_id))
 
     def set_status(self, cand_id: str, status: str, speedup: float | None = None) -> None:
-        self._exec("UPDATE candidates SET status = ?, speedup = ? WHERE id = ?", (status, speedup, cand_id))
+        self._exec(
+            "UPDATE candidates SET status = ?, speedup = ? WHERE id = ?", (status, speedup, cand_id)
+        )
 
     def set_retained(self, exp_id: str, problem: str, cand_id: str) -> None:
         with self._lock:
             self.conn.execute(
-                "UPDATE candidates SET retained = 0 WHERE experiment_id = ? AND problem = ?", (exp_id, problem)
+                "UPDATE candidates SET retained = 0 WHERE experiment_id = ? AND problem = ?",
+                (exp_id, problem),
             )
             self.conn.execute("UPDATE candidates SET retained = 1 WHERE id = ?", (cand_id,))
             self.conn.commit()
 
-    def candidates(self, exp_id: str, problem: str | None = None, with_source: bool = False) -> list[dict[str, Any]]:
-        cols = "*" if with_source else (
-            "id, experiment_id, seq, problem, op, dtype, origin, parent_id, config, label, source_hash, note, "
-            "created_at, compile_ok, compile_error, compile_error_kind, compile_ms, compile_cached, metadata, "
-            "valid_status, validation, bench_ok, bench_error, p50_ms, p95_ms, mean_ms, std_ms, min_ms, max_ms, "
-            "samples, bench_method, bench_cached, profile, status, retained, speedup"
+    def candidates(
+        self, exp_id: str, problem: str | None = None, with_source: bool = False
+    ) -> list[dict[str, Any]]:
+        cols = (
+            "*"
+            if with_source
+            else (
+                "id, experiment_id, seq, problem, op, dtype, origin, parent_id, config, label, source_hash, note, "
+                "created_at, compile_ok, compile_error, compile_error_kind, compile_ms, compile_cached, metadata, "
+                "valid_status, validation, bench_ok, bench_error, p50_ms, p95_ms, mean_ms, std_ms, min_ms, max_ms, "
+                "samples, bench_method, bench_cached, profile, status, retained, speedup"
+            )
         )
         sql = f"SELECT {cols} FROM candidates WHERE experiment_id = ?"
         args: tuple = (exp_id,)
@@ -293,10 +364,23 @@ class Store:
         cur = self._exec(
             """INSERT INTO decisions (experiment_id, step, kind, problem, tool, args, result, rationale,
                evidence, candidate_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (exp_id, step, kind, problem, tool, _dumps(args), _dumps(result), rationale, _dumps(evidence),
-             candidate_id, time.time()),
+            (
+                exp_id,
+                step,
+                kind,
+                problem,
+                tool,
+                _dumps(args),
+                _dumps(result),
+                rationale,
+                _dumps(evidence),
+                candidate_id,
+                time.time(),
+            ),
         )
         return int(cur.lastrowid or 0)
 
     def decisions(self, exp_id: str) -> list[dict[str, Any]]:
-        return self._exec("SELECT * FROM decisions WHERE experiment_id = ? ORDER BY id", (exp_id,)).fetchall()
+        return self._exec(
+            "SELECT * FROM decisions WHERE experiment_id = ? ORDER BY id", (exp_id,)
+        ).fetchall()

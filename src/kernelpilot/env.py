@@ -123,17 +123,28 @@ def detect() -> Environment:
                 major, minor = torch.cuda.get_device_capability(0)
                 env.compute_capability = f"{major}.{minor}"
             probes.append(
-                Probe("torch.cuda", env.cuda_available,
-                      f"{env.gpu_name} (sm_{env.compute_capability})" if env.cuda_available
-                      else "torch installed but no CUDA device visible")
+                Probe(
+                    "torch.cuda",
+                    env.cuda_available,
+                    f"{env.gpu_name} (sm_{env.compute_capability})"
+                    if env.cuda_available
+                    else "torch installed but no CUDA device visible",
+                )
             )
         except Exception as exc:
             probes.append(Probe("torch.cuda", False, f"probe failed: {exc}"))
     else:
-        probes.append(Probe("torch", False, env.torch or "not installed (pip install kernelpilot[gpu])"))
+        probes.append(
+            Probe("torch", False, env.torch or "not installed (pip install kernelpilot[gpu])")
+        )
 
-    probes.append(Probe("triton", bool(env.triton and not env.triton.startswith("broken")),
-                        env.triton or "not installed (no wheels for macOS / Windows)"))
+    probes.append(
+        Probe(
+            "triton",
+            bool(env.triton and not env.triton.startswith("broken")),
+            env.triton or "not installed (no wheels for macOS / Windows)",
+        )
+    )
 
     smi = _run(["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"])
     if smi:
@@ -144,6 +155,11 @@ def detect() -> Environment:
     if env.ncu:
         out = _run([env.ncu, "--version"])
         env.ncu_version = out.splitlines()[-1] if out else "unknown"
-    probes.append(Probe("nsight compute", env.ncu is not None,
-                        env.ncu_version or "ncu not on PATH (profiling disabled)"))
+    probes.append(
+        Probe(
+            "nsight compute",
+            env.ncu is not None,
+            env.ncu_version or "ncu not on PATH (profiling disabled)",
+        )
+    )
     return env

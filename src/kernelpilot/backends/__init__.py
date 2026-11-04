@@ -48,8 +48,13 @@ class WorkerBackend(Backend):
         if self.simulated:
             from kernelpilot.backends import perf_model
 
-            fp.update(gpu=perf_model.SimDevice().name, model=perf_model.MODEL_VERSION,
-                      cc=None, driver=None, cuda=None)
+            fp.update(
+                gpu=perf_model.SimDevice().name,
+                model=perf_model.MODEL_VERSION,
+                cc=None,
+                driver=None,
+                cuda=None,
+            )
         return fp
 
     def describe(self) -> str:
@@ -67,8 +72,15 @@ class WorkerBackend(Backend):
         }
         t0 = time.perf_counter()
         res = self.executor.run(req, self.timeout_s)
-        log.debug("worker call", extra=kv(action=action, cand=cand.id, ok=res.get("ok"),
-                                           ms=round((time.perf_counter() - t0) * 1e3, 1)))
+        log.debug(
+            "worker call",
+            extra=kv(
+                action=action,
+                cand=cand.id,
+                ok=res.get("ok"),
+                ms=round((time.perf_counter() - t0) * 1e3, 1),
+            ),
+        )
         return res
 
     def compile(self, cand: Candidate) -> CompileResult:
@@ -158,14 +170,20 @@ class CachedBackend(Backend):
         return res
 
 
-def make_backend(settings: Settings, env: Environment | None = None, cache: ResultCache | None = None) -> Backend:
+def make_backend(
+    settings: Settings, env: Environment | None = None, cache: ResultCache | None = None
+) -> Backend:
     env = env or detect()
     choice = settings.backend
     if choice == "auto":
         choice = "triton" if env.can_run_triton else "sim"
     if choice == "triton" and not env.can_run_triton:
-        reasons = [p.detail for p in env.probes if not p.ok and p.name in ("torch", "torch.cuda", "triton")]
-        raise BackendUnavailable("triton backend needs torch + triton + a CUDA device: " + "; ".join(reasons))
+        reasons = [
+            p.detail for p in env.probes if not p.ok and p.name in ("torch", "torch.cuda", "triton")
+        ]
+        raise BackendUnavailable(
+            "triton backend needs torch + triton + a CUDA device: " + "; ".join(reasons)
+        )
 
     isolation = settings.isolation or ("subprocess" if choice == "triton" else "inprocess")
     inner = WorkerBackend(choice, make_executor(isolation), env, settings.timeout_s)

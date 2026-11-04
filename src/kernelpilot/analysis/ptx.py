@@ -80,7 +80,11 @@ def summarize_ptx(ptx: str) -> PtxSummary:
     ops: Counter[str] = Counter()
     for line in ptx.splitlines():
         stripped = line.strip()
-        if not stripped or stripped.startswith(("//", ".", "{", "}", "$")) or stripped.endswith(":"):
+        if (
+            not stripped
+            or stripped.startswith(("//", ".", "{", "}", "$"))
+            or stripped.endswith(":")
+        ):
             continue
         mm = _INSTR.match(line)
         if not mm:

@@ -36,7 +36,9 @@ TL_NAMES = frozenset(
     """.split()
 )
 
-ALLOWED_BUILTINS = frozenset({"range", "min", "max", "float", "int", "len", "print", "isinstance", "True", "False", "None"})
+ALLOWED_BUILTINS = frozenset(
+    {"range", "min", "max", "float", "int", "len", "print", "isinstance", "True", "False", "None"}
+)
 
 UNSUPPORTED = {
     ast.Try: "try/except",
@@ -107,7 +109,11 @@ def _is_jit(fn: ast.FunctionDef) -> bool:
 
 
 def _const_eval(node: ast.AST, env: dict[str, int]) -> int | None:
-    if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
+    if (
+        isinstance(node, ast.Constant)
+        and isinstance(node.value, int)
+        and not isinstance(node.value, bool)
+    ):
         return node.value
     if isinstance(node, ast.Name):
         return env.get(node.id)
@@ -130,7 +136,11 @@ def _const_eval(node: ast.AST, env: dict[str, int]) -> int | None:
 def _module_constants(tree: ast.Module) -> dict[str, int]:
     out: dict[str, int] = {}
     for node in tree.body:
-        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+        ):
             val = _const_eval(node.value, out)
             if val is not None:
                 out[node.targets[0].id] = val
@@ -153,7 +163,9 @@ def _module_names(tree: ast.Module) -> set[str]:
     return names
 
 
-def _launch_bindings(tree: ast.Module, constants: dict[str, int], kernels: set[str]) -> dict[str, dict[str, int]]:
+def _launch_bindings(
+    tree: ast.Module, constants: dict[str, int], kernels: set[str]
+) -> dict[str, dict[str, int]]:
     """Find `kernel[grid](..., NAME=VALUE)` calls and resolve the constexpr kwargs."""
     out: dict[str, dict[str, int]] = {}
     for node in ast.walk(tree):
@@ -188,7 +200,9 @@ def _tl_attr(node: ast.AST) -> str | None:
 
 
 class _KernelChecker(ast.NodeVisitor):
-    def __init__(self, fn: ast.FunctionDef, env: dict[str, int], module_names: set[str], jit_names: set[str]):
+    def __init__(
+        self, fn: ast.FunctionDef, env: dict[str, int], module_names: set[str], jit_names: set[str]
+    ):
         self.fn = fn
         self.env = env
         self.module_names = module_names
@@ -200,7 +214,9 @@ class _KernelChecker(ast.NodeVisitor):
                 self.local_names.add(node.id)
 
     def err(self, node: ast.AST, msg: str, fatal: bool = True) -> None:
-        self.issues.append(Issue(getattr(node, "lineno", 0), getattr(node, "col_offset", 0), msg, fatal))
+        self.issues.append(
+            Issue(getattr(node, "lineno", 0), getattr(node, "col_offset", 0), msg, fatal)
+        )
 
     def generic_visit(self, node: ast.AST) -> None:
         for kind, label in UNSUPPORTED.items():
@@ -242,7 +258,9 @@ class _KernelChecker(ast.NodeVisitor):
                 elif not is_pow2(extent):
                     self.err(node, f"arange's range must be a power of 2 (got {extent})")
                 elif extent > 1 << 20:
-                    self.err(node, f"numel ({extent}) exceeds triton maximum tensor numel (1048576)")
+                    self.err(
+                        node, f"numel ({extent}) exceeds triton maximum tensor numel (1048576)"
+                    )
         elif tl_name in ("zeros", "full") and node.args:
             shape = node.args[0]
             dims = shape.elts if isinstance(shape, (ast.Tuple, ast.List)) else []
@@ -253,7 +271,10 @@ class _KernelChecker(ast.NodeVisitor):
         elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
             owner = func.value.id
             if owner in ("np", "numpy", "torch", "math", "random", "os"):
-                self.err(node, f"calling non-jit function {owner}.{func.attr} inside a @triton.jit kernel")
+                self.err(
+                    node,
+                    f"calling non-jit function {owner}.{func.attr} inside a @triton.jit kernel",
+                )
         elif isinstance(func, ast.Name):
             if func.id == "print":
                 self.err(node, "print() inside a kernel; use tl.device_print", fatal=False)

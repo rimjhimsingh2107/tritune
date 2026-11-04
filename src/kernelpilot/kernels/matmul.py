@@ -27,7 +27,12 @@ class Matmul(KernelSpec):
     name = "matmul"
     summary = "C = A @ B with A (M, K), B (K, N). Tiled, tensor-core path via tl.dot."
     inputs = ("a", "b")
-    default_shapes = ((1024, 1024, 1024), (2048, 2048, 2048), (4096, 4096, 1024), (1000, 1000, 1000))
+    default_shapes = (
+        (1024, 1024, 1024),
+        (2048, 2048, 2048),
+        (4096, 4096, 1024),
+        (1000, 1000, 1000),
+    )
     dtypes = ("fp16", "fp32")
     variants = {
         "tiled": Variant("tiled", "matmul.py.tmpl", "one program per output tile, row-major order"),
@@ -54,7 +59,9 @@ class Matmul(KernelSpec):
         a, b = inputs
         return a.astype(np.float64) @ b.astype(np.float64)
 
-    def emulate(self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem) -> np.ndarray:
+    def emulate(
+        self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem
+    ) -> np.ndarray:
         a, b = inputs
         if config.variant == "fp16acc":
             # mma.sync with f16 accumulators: model as k=16 chunks rounded into

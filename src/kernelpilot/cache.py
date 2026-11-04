@@ -28,14 +28,20 @@ CREATE TABLE IF NOT EXISTS result_cache (
 """
 
 
-def cache_key(stage: str, source_hash: str, problem_key: str, fingerprint: dict[str, Any], **extra: Any) -> str:
-    return sha256(canonical_json({
-        "stage": stage,
-        "source": source_hash,
-        "problem": problem_key,
-        "env": fingerprint,
-        "extra": extra,
-    }))
+def cache_key(
+    stage: str, source_hash: str, problem_key: str, fingerprint: dict[str, Any], **extra: Any
+) -> str:
+    return sha256(
+        canonical_json(
+            {
+                "stage": stage,
+                "source": source_hash,
+                "problem": problem_key,
+                "env": fingerprint,
+                "extra": extra,
+            }
+        )
+    )
 
 
 class ResultCache:
@@ -52,7 +58,9 @@ class ResultCache:
 
     def get(self, key: str) -> dict[str, Any] | None:
         with self._lock:
-            row = self._conn.execute("SELECT payload FROM result_cache WHERE key = ?", (key,)).fetchone()
+            row = self._conn.execute(
+                "SELECT payload FROM result_cache WHERE key = ?", (key,)
+            ).fetchone()
             if row is None:
                 self.misses += 1
                 return None

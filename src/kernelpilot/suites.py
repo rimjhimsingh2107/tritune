@@ -45,4 +45,6 @@ def suite_problems(name: str) -> list[Problem]:
 
 def default_problems(op: str) -> list[Problem]:
     spec = get_spec(op)
-    return [Problem(op, shape, dtype) for shape in spec.default_shapes[:2] for dtype in spec.dtypes[:1]]
+    return [
+        Problem(op, shape, dtype) for shape in spec.default_shapes[:2] for dtype in spec.dtypes[:1]
+    ]

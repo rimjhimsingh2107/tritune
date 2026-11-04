@@ -35,7 +35,9 @@ class Context:
         return cls(settings, env, Store(settings.db_path), backend)
 
 
-def make_planner(settings: Settings, kind: str = "auto", opening: list[dict[str, Any]] | None = None) -> Planner:
+def make_planner(
+    settings: Settings, kind: str = "auto", opening: list[dict[str, Any]] | None = None
+) -> Planner:
     if kind not in ("auto", "heuristic", "llm"):
         raise ValueError(f"planner must be auto, heuristic or llm (got {kind!r})")
     ok, why = llm_available(settings.llm_provider)
@@ -67,9 +69,19 @@ def run_experiment(
     if planner_obj is not None:
         params["planner"] = planner_obj.name
 
-    label = name or f"{strategy} on {problems[0].key}" + (f" (+{len(problems) - 1})" if len(problems) > 1 else "")
-    session = Session(ctx.store, ctx.backend, ctx.settings, ctx.env, name=label, strategy=strategy,
-                      target=problems, params=params)
+    label = name or f"{strategy} on {problems[0].key}" + (
+        f" (+{len(problems) - 1})" if len(problems) > 1 else ""
+    )
+    session = Session(
+        ctx.store,
+        ctx.backend,
+        ctx.settings,
+        ctx.env,
+        name=label,
+        strategy=strategy,
+        target=problems,
+        params=params,
+    )
     status = "done"
     outcomes = []
     try:
@@ -78,8 +90,14 @@ def run_experiment(
                 # fresh planner state per problem; scripted openings only apply to the first
                 pl = planner_obj if p is problems[0] else make_planner(ctx.settings, planner, None)
                 out = AgentRunner(session, pl, AgentBudget(max_candidates=budget)).run(p)
-                outcomes.append({"problem": p.key, "stop_reason": out.stop_reason, "steps": out.steps,
-                                 "tool_calls": out.tool_calls})
+                outcomes.append(
+                    {
+                        "problem": p.key,
+                        "stop_reason": out.stop_reason,
+                        "steps": out.steps,
+                        "tool_calls": out.tool_calls,
+                    }
+                )
             else:
                 run_search(session, p, strategy, budget, on_trial=on_trial)
     except KeyboardInterrupt:

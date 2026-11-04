@@ -33,7 +33,9 @@ class Turn:
 class Planner(Protocol):
     name: str
 
-    def start(self, briefing: str, tools: list[dict[str, Any]], context: dict[str, Any]) -> None: ...
+    def start(
+        self, briefing: str, tools: list[dict[str, Any]], context: dict[str, Any]
+    ) -> None: ...
 
     def next_turn(self, results: list[ToolResult]) -> Turn: ...
 
@@ -68,14 +70,30 @@ class HeuristicPlanner:
         self.incumbent = self.baseline_id
         b = self.baseline_id
         self.queue = [
-            ("Start by looking at the baseline kernel and its launch config.", self._call("inspect_kernel", candidate_id=b)),
-            ("Compile the baseline to get register / shared memory numbers.", self._call("compile_candidate", candidate_id=b)),
-            ("Check the baseline is numerically correct before trusting any timing.", self._call("validate_correctness", candidate_id=b)),
-            ("Measure the baseline; every later candidate is compared against this.", self._call("benchmark_candidate", candidate_id=b)),
+            (
+                "Start by looking at the baseline kernel and its launch config.",
+                self._call("inspect_kernel", candidate_id=b),
+            ),
+            (
+                "Compile the baseline to get register / shared memory numbers.",
+                self._call("compile_candidate", candidate_id=b),
+            ),
+            (
+                "Check the baseline is numerically correct before trusting any timing.",
+                self._call("validate_correctness", candidate_id=b),
+            ),
+            (
+                "Measure the baseline; every later candidate is compared against this.",
+                self._call("benchmark_candidate", candidate_id=b),
+            ),
         ]
         if self.profile:
-            self.queue.append(("Profile the baseline to see what it's bound by.",
-                               self._call("profile_candidate", candidate_id=b)))
+            self.queue.append(
+                (
+                    "Profile the baseline to see what it's bound by.",
+                    self._call("profile_candidate", candidate_id=b),
+                )
+            )
 
     # -- turn logic --------------------------------------------------------
 
@@ -105,22 +123,37 @@ class HeuristicPlanner:
             ]
         elif r.name == "compile_candidate" and r.ok and c.get("candidate_id") == self.current:
             if c["ok"]:
-                self.queue.insert(0, ("It compiles. Validate before timing it.",
-                                      self._call("validate_correctness", candidate_id=self.current)))
+                self.queue.insert(
+                    0,
+                    (
+                        "It compiles. Validate before timing it.",
+                        self._call("validate_correctness", candidate_id=self.current),
+                    ),
+                )
             else:
                 self.queue.clear()  # back to proposing; the recommender sees the failure
         elif r.name == "validate_correctness" and r.ok and c.get("candidate_id") == self.current:
             if c["ok"]:
-                self.queue.insert(0, ("Numerics check out. Benchmark it against the incumbent.",
-                                      self._call("benchmark_candidate", candidate_id=self.current)))
+                self.queue.insert(
+                    0,
+                    (
+                        "Numerics check out. Benchmark it against the incumbent.",
+                        self._call("benchmark_candidate", candidate_id=self.current),
+                    ),
+                )
             else:
                 self.queue.clear()
         elif r.name == "benchmark_candidate" and r.ok:
             if c.get("accepted") and c["candidate_id"] != self.baseline_id:
                 self.incumbent = c["candidate_id"]
                 if self.profile:
-                    self.queue.insert(0, ("New incumbent. Re-profile it so the next hypothesis uses fresh numbers.",
-                                          self._call("profile_candidate", candidate_id=self.incumbent)))
+                    self.queue.insert(
+                        0,
+                        (
+                            "New incumbent. Re-profile it so the next hypothesis uses fresh numbers.",
+                            self._call("profile_candidate", candidate_id=self.incumbent),
+                        ),
+                    )
             self.incumbent = c.get("incumbent_id") or self.incumbent
         elif r.name == "recommend_optimization":
             self.recs = c.get("recommendations", []) if r.ok else []
@@ -128,20 +161,33 @@ class HeuristicPlanner:
             self.finished = True
 
     def _finish(self, why: str) -> None:
-        self.queue = [(f"{why} Wrapping up.",
-                       self._call("save_experiment", summary=why + " Kept the fastest verified candidate."))]
+        self.queue = [
+            (
+                f"{why} Wrapping up.",
+                self._call(
+                    "save_experiment", summary=why + " Kept the fastest verified candidate."
+                ),
+            )
+        ]
 
     def _propose(self) -> Turn:
         if self.opening:
             args = self.opening.pop(0)
-            return Turn(f"Trying an idea first: {args['hypothesis']}", [self._call("generate_candidate", **args)])
+            return Turn(
+                f"Trying an idea first: {args['hypothesis']}",
+                [self._call("generate_candidate", **args)],
+            )
         if self.recs is None:
-            return Turn("Ask the advisor what the current numbers point to.",
-                        [self._call("recommend_optimization", candidate_id=self.incumbent, limit=4)])
+            return Turn(
+                "Ask the advisor what the current numbers point to.",
+                [self._call("recommend_optimization", candidate_id=self.incumbent, limit=4)],
+            )
         recs, self.recs = self.recs, None
         if not recs:
-            return Turn("No untried changes left that the observations justify.",
-                        [self._call("save_experiment", summary=self._summary_text())])
+            return Turn(
+                "No untried changes left that the observations justify.",
+                [self._call("save_experiment", summary=self._summary_text())],
+            )
         top = recs[0]
         cites = ", ".join(e["kind"] for e in top.get("evidence", [])) or "local search"
         text = f"{top['rationale']}. Hypothesis: {top['hypothesis']} [{cites}]"

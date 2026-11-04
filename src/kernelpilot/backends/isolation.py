@@ -85,12 +85,15 @@ class SubprocessExecutor:
                 )
             except subprocess.TimeoutExpired:
                 log.warning("worker timed out", extra=kv(action=req.get("action"), timeout=timeout))
-                return {"ok": False, "error_kind": "timeout",
-                        "error": f"worker timed out after {timeout:.0f}s ({req.get('action')})"}
+                return {
+                    "ok": False,
+                    "error_kind": "timeout",
+                    "error": f"worker timed out after {timeout:.0f}s ({req.get('action')})",
+                }
 
         for line in reversed(proc.stdout.splitlines()):
             if line.startswith(MARK):
-                return json.loads(line[len(MARK):])
+                return json.loads(line[len(MARK) :])
 
         tail = (proc.stderr or proc.stdout or "")[-3000:]
         log.warning("worker died", extra=kv(code=proc.returncode, action=req.get("action")))

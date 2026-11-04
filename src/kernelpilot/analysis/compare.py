@@ -16,11 +16,13 @@ def best_so_far(cands: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for i, c in enumerate(cands, 1):
         if c["status"] == "measured" and c["p50_ms"] and (best is None or c["p50_ms"] < best):
             best = c["p50_ms"]
-        curve.append({
-            "n": i,
-            "best_p50_ms": best,
-            "speedup": (base["p50_ms"] / best) if (base and best) else None,
-        })
+        curve.append(
+            {
+                "n": i,
+                "best_p50_ms": best,
+                "speedup": (base["p50_ms"] / best) if (base and best) else None,
+            }
+        )
     return curve
 
 
@@ -53,25 +55,29 @@ def compare_experiments(store: Store, a_id: str, b_id: str) -> dict[str, Any]:
         pa, pb = a["problems"][key], b["problems"][key]
         sa, sb = pa.get("speedup"), pb.get("speedup")
         if sa and sb:
-            winner = "tie" if abs(sa - sb) / max(sa, sb) < 0.01 else (a["id"] if sa > sb else b["id"])
+            winner = (
+                "tie" if abs(sa - sb) / max(sa, sb) < 0.01 else (a["id"] if sa > sb else b["id"])
+            )
         else:
             winner = a["id"] if sa else (b["id"] if sb else None)
-        rows.append({
-            "problem": key,
-            "a_speedup": sa,
-            "b_speedup": sb,
-            "a_best": pa.get("best_label"),
-            "b_best": pb.get("best_label"),
-            "a_evaluated": pa.get("evaluated"),
-            "b_evaluated": pb.get("evaluated"),
-            "a_evals_to_best": pa.get("evals_to_best"),
-            "b_evals_to_best": pb.get("evals_to_best"),
-            "a_failures": (pa.get("compile_failed") or 0) + (pa.get("invalid") or 0),
-            "b_failures": (pb.get("compile_failed") or 0) + (pb.get("invalid") or 0),
-            "a_curve": pa["curve"],
-            "b_curve": pb["curve"],
-            "winner": winner,
-        })
+        rows.append(
+            {
+                "problem": key,
+                "a_speedup": sa,
+                "b_speedup": sb,
+                "a_best": pa.get("best_label"),
+                "b_best": pb.get("best_label"),
+                "a_evaluated": pa.get("evaluated"),
+                "b_evaluated": pb.get("evaluated"),
+                "a_evals_to_best": pa.get("evals_to_best"),
+                "b_evals_to_best": pb.get("evals_to_best"),
+                "a_failures": (pa.get("compile_failed") or 0) + (pa.get("invalid") or 0),
+                "b_failures": (pb.get("compile_failed") or 0) + (pb.get("invalid") or 0),
+                "a_curve": pa["curve"],
+                "b_curve": pb["curve"],
+                "winner": winner,
+            }
+        )
     return {
         "a": {k: v for k, v in a.items() if k != "problems"},
         "b": {k: v for k, v in b.items() if k != "problems"},

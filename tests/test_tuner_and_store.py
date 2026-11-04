@@ -12,7 +12,16 @@ from kernelpilot.tuner import grid_configs, random_configs, run_search
 
 
 def make_session(store, backend, settings, env, problems, strategy="grid", **params):
-    return Session(store, backend, settings, env, name="test", strategy=strategy, target=problems, params=params)
+    return Session(
+        store,
+        backend,
+        settings,
+        env,
+        name="test",
+        strategy=strategy,
+        target=problems,
+        params=params,
+    )
 
 
 def test_geomean_and_latency_verdicts():
@@ -42,8 +51,12 @@ def test_grid_is_strided_and_random_is_seeded():
     assert len(g) == 10
     assert {c.variant for c in g} == {"tiled", "grouped"}  # covers both halves of the grid
     assert g[0].key == full[0].key and g[-1].key == full[-1].key
-    assert [c.key for c in random_configs(p, 8, seed=1)] == [c.key for c in random_configs(p, 8, seed=1)]
-    assert [c.key for c in random_configs(p, 8, seed=1)] != [c.key for c in random_configs(p, 8, seed=2)]
+    assert [c.key for c in random_configs(p, 8, seed=1)] == [
+        c.key for c in random_configs(p, 8, seed=1)
+    ]
+    assert [c.key for c in random_configs(p, 8, seed=1)] != [
+        c.key for c in random_configs(p, 8, seed=2)
+    ]
     assert len(grid_configs(p, 10_000)) == len(full)
 
 
@@ -109,8 +122,13 @@ def test_report_contains_required_sections(store, backend, settings, env):
     rep = build_report(store, sess.exp_id)
     md = to_markdown(rep)
     assert "SIMULATED RESULTS" in md
-    for section in ("## Results", "## Latency distributions", "## Resource usage",
-                    "## Compilation failures", "## Numerical validation failures"):
+    for section in (
+        "## Results",
+        "## Latency distributions",
+        "## Resource usage",
+        "## Compilation failures",
+        "## Numerical validation failures",
+    ):
         assert section in md
     assert "out of resource" in md  # 2048^3 grid includes tiles that blow shared memory
     assert "NaN" in md

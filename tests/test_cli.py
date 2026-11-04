@@ -36,10 +36,32 @@ def test_test_command_passes_on_searchable_variants():
 
 
 def test_optimize_report_compare_flow(tmp_path):
-    r = run("optimize", "softmax", "--shape", "512x8192", "--dtype", "fp32", "--strategy", "agent", "--budget", "3")
+    r = run(
+        "optimize",
+        "softmax",
+        "--shape",
+        "512x8192",
+        "--dtype",
+        "fp32",
+        "--strategy",
+        "agent",
+        "--budget",
+        "3",
+    )
     assert r.exit_code == 0, r.output
     assert "geomean speedup" in r.output
-    r = run("optimize", "softmax", "--shape", "512x8192", "--dtype", "fp32", "--strategy", "grid", "--budget", "3")
+    r = run(
+        "optimize",
+        "softmax",
+        "--shape",
+        "512x8192",
+        "--dtype",
+        "fp32",
+        "--strategy",
+        "grid",
+        "--budget",
+        "3",
+    )
     assert r.exit_code == 0
     r = run("compare", "--json")
     data = json.loads(r.output)

@@ -52,7 +52,9 @@ class Softmax(KernelSpec):
         e = np.exp(x)
         return e / e.sum(axis=1, keepdims=True)
 
-    def emulate(self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem) -> np.ndarray:
+    def emulate(
+        self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem
+    ) -> np.ndarray:
         x = inputs[0]
         if config.variant == "naive":
             with np.errstate(over="ignore", invalid="ignore"):

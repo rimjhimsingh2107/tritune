@@ -40,7 +40,9 @@ class VectorAdd(KernelSpec):
         x, y = inputs
         return x.astype(np.float64) + y.astype(np.float64)
 
-    def emulate(self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem) -> np.ndarray:
+    def emulate(
+        self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem
+    ) -> np.ndarray:
         x, y = inputs
         out = (x + y).astype(problem.np_dtype)
         if config.variant == "unmasked":

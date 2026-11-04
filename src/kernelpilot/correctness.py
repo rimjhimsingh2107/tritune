@@ -69,8 +69,18 @@ def compare(out: np.ndarray, ref: np.ndarray, tol: Tolerance, problem: str) -> C
     out = np.asarray(out)
     ref = np.asarray(ref, dtype=np.float64)
     if out.shape != ref.shape:
-        return Check(problem, False, float("inf"), float("inf"), 1.0, 0, 0, tol.atol, tol.rtol,
-                     message=f"shape mismatch: got {out.shape}, want {ref.shape}")
+        return Check(
+            problem,
+            False,
+            float("inf"),
+            float("inf"),
+            1.0,
+            0,
+            0,
+            tol.atol,
+            tol.rtol,
+            message=f"shape mismatch: got {out.shape}, want {ref.shape}",
+        )
 
     o = out.astype(np.float64)
     nan = int(np.isnan(o).sum())

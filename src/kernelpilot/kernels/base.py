@@ -75,7 +75,9 @@ class KernelSpec(ABC):
         """float64 numpy reference. The ground truth for everything else."""
 
     @abstractmethod
-    def emulate(self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem) -> np.ndarray:
+    def emulate(
+        self, config: KernelConfig, inputs: list[np.ndarray], problem: Problem
+    ) -> np.ndarray:
         """Reproduce the *numerics* of a variant on the CPU.
 
         Used by the simulated backend. It models accumulation dtype, masking

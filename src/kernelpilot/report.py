@@ -47,12 +47,15 @@ def _resources(c: dict[str, Any]) -> dict[str, Any]:
     return {
         "registers": md.get("n_regs") or prof.get("registers_per_thread"),
         "spills": md.get("n_spills"),
-        "shared_bytes": md.get("shared") if md.get("shared") is not None else prof.get("shared_mem_per_block"),
+        "shared_bytes": md.get("shared")
+        if md.get("shared") is not None
+        else prof.get("shared_mem_per_block"),
         "occupancy_pct": prof.get("achieved_occupancy_pct")
         or (round(md["est_occupancy"] * 100, 1) if md.get("est_occupancy") is not None else None),
         "dram_pct": prof.get("dram_throughput_pct"),
-        "occupancy_source": "profiler" if prof.get("achieved_occupancy_pct") else (
-            "estimate" if md.get("est_occupancy") is not None else None),
+        "occupancy_source": "profiler"
+        if prof.get("achieved_occupancy_pct")
+        else ("estimate" if md.get("est_occupancy") is not None else None),
     }
 
 
@@ -83,42 +86,100 @@ def build_report(store: Store, exp_id: str) -> dict[str, Any]:
         by_id = {c["id"]: c for c in cands}
         best = by_id.get(ps.get("best_id"))
         base = by_id.get(ps.get("baseline_id"))
-        problems.append({
-            **ps,
-            "baseline": {"label": base["label"], "latency": _latency(base), "resources": _resources(base)} if base else None,
-            "best": {"label": best["label"], "latency": _latency(best), "resources": _resources(best),
-                     "origin": best["origin"], "note": best["note"]} if best else None,
-            "compile_failures": [
-                {"id": c["id"], "label": c["label"], "kind": c["compile_error_kind"], "error": c["compile_error"]}
-                for c in cands if c["status"] == "compile_failed"
-            ],
-            "validation_failures": [
-                {"id": c["id"], "label": c["label"], "status": c["valid_status"],
-                 "detail": _validation_detail(c.get("validation"))}
-                for c in cands if c["status"] in ("invalid", "unverified")
-            ],
-            "candidates": [
-                {"id": c["id"], "seq": c["seq"], "label": c["label"], "origin": c["origin"], "status": c["status"],
-                 "p50_ms": c["p50_ms"], "p95_ms": c["p95_ms"], "speedup": c["speedup"],
-                 "compile_ms": c["compile_ms"], "retained": bool(c["retained"]), **_resources(c)}
-                for c in cands
-            ],
-            "curve": best_so_far(cands),
-        })
+        problems.append(
+            {
+                **ps,
+                "baseline": {
+                    "label": base["label"],
+                    "latency": _latency(base),
+                    "resources": _resources(base),
+                }
+                if base
+                else None,
+                "best": {
+                    "label": best["label"],
+                    "latency": _latency(best),
+                    "resources": _resources(best),
+                    "origin": best["origin"],
+                    "note": best["note"],
+                }
+                if best
+                else None,
+                "compile_failures": [
+                    {
+                        "id": c["id"],
+                        "label": c["label"],
+                        "kind": c["compile_error_kind"],
+                        "error": c["compile_error"],
+                    }
+                    for c in cands
+                    if c["status"] == "compile_failed"
+                ],
+                "validation_failures": [
+                    {
+                        "id": c["id"],
+                        "label": c["label"],
+                        "status": c["valid_status"],
+                        "detail": _validation_detail(c.get("validation")),
+                    }
+                    for c in cands
+                    if c["status"] in ("invalid", "unverified")
+                ],
+                "candidates": [
+                    {
+                        "id": c["id"],
+                        "seq": c["seq"],
+                        "label": c["label"],
+                        "origin": c["origin"],
+                        "status": c["status"],
+                        "p50_ms": c["p50_ms"],
+                        "p95_ms": c["p95_ms"],
+                        "speedup": c["speedup"],
+                        "compile_ms": c["compile_ms"],
+                        "retained": bool(c["retained"]),
+                        **_resources(c),
+                    }
+                    for c in cands
+                ],
+                "curve": best_so_far(cands),
+            }
+        )
     decisions = [
-        {"step": d["step"], "kind": d["kind"], "problem": d["problem"], "tool": d["tool"],
-         "rationale": d["rationale"], "candidate_id": d["candidate_id"], "evidence": d["evidence"]}
+        {
+            "step": d["step"],
+            "kind": d["kind"],
+            "problem": d["problem"],
+            "tool": d["tool"],
+            "rationale": d["rationale"],
+            "candidate_id": d["candidate_id"],
+            "evidence": d["evidence"],
+        }
         for d in store.decisions(exp["id"])
         if d["kind"] not in ("trial", "tool_call")
     ]
     env = exp.get("environment") or {}
     return {
-        "experiment": {k: exp[k] for k in ("id", "name", "strategy", "status", "backend", "created_at", "finished_at")},
+        "experiment": {
+            k: exp[k]
+            for k in ("id", "name", "strategy", "status", "backend", "created_at", "finished_at")
+        },
         "simulated": bool(exp["simulated"]),
         "params": exp.get("params"),
         "fingerprint": exp.get("fingerprint"),
-        "environment": {k: env.get(k) for k in ("python", "platform", "torch", "triton", "gpu_name",
-                                                 "compute_capability", "driver", "cuda_runtime", "ncu_version")},
+        "environment": {
+            k: env.get(k)
+            for k in (
+                "python",
+                "platform",
+                "torch",
+                "triton",
+                "gpu_name",
+                "compute_capability",
+                "driver",
+                "cuda_runtime",
+                "ncu_version",
+            )
+        },
         "summary": {k: v for k, v in summary.items() if k != "problems"},
         "problems": problems,
         "decisions": decisions,
@@ -163,16 +224,23 @@ def to_markdown(r: dict[str, Any]) -> str:
     ]
     cache = s.get("cache")
     if cache:
-        out.append(f"- cache: {cache['session_hits']} hits / {cache['session_misses']} misses this run")
+        out.append(
+            f"- cache: {cache['session_hits']} hits / {cache['session_misses']} misses this run"
+        )
     if r.get("params"):
         p = r["params"]
-        out.append(f"- params: seed={p.get('seed')} reps={p.get('reps')} warmup={p.get('warmup')}"
-                   + (f" budget={p['budget']}" if "budget" in p else ""))
+        out.append(
+            f"- params: seed={p.get('seed')} reps={p.get('reps')} warmup={p.get('warmup')}"
+            + (f" budget={p['budget']}" if "budget" in p else "")
+        )
     out.append("")
 
-    out += ["## Results", "",
-            "| problem | baseline p50 | best p50 | speedup | best config | evals | to-best | failed |",
-            "|---|---:|---:|---:|---|---:|---:|---:|"]
+    out += [
+        "## Results",
+        "",
+        "| problem | baseline p50 | best p50 | speedup | best config | evals | to-best | failed |",
+        "|---|---:|---:|---:|---|---:|---:|---:|",
+    ]
     for p in r["problems"]:
         best = p.get("best") or {}
         out.append(
@@ -182,19 +250,28 @@ def to_markdown(r: dict[str, Any]) -> str:
         )
     out.append("")
 
-    out += ["## Latency distributions", "",
-            "| problem | which | n | p50 | p95 | min | max | histogram |", "|---|---|---:|---:|---:|---:|---:|---|"]
+    out += [
+        "## Latency distributions",
+        "",
+        "| problem | which | n | p50 | p95 | min | max | histogram |",
+        "|---|---|---:|---:|---:|---:|---:|---|",
+    ]
     for p in r["problems"]:
         for which in ("baseline", "best"):
             lat = (p.get(which) or {}).get("latency")
             if lat:
-                out.append(f"| `{p['problem']}` | {which} | {lat['n']} | {_fmt_ms(lat['p50'])} | "
-                           f"{_fmt_ms(lat['p95'])} | {_fmt_ms(lat['min'])} | {_fmt_ms(lat['max'])} | `{lat['spark']}` |")
+                out.append(
+                    f"| `{p['problem']}` | {which} | {lat['n']} | {_fmt_ms(lat['p50'])} | "
+                    f"{_fmt_ms(lat['p95'])} | {_fmt_ms(lat['min'])} | {_fmt_ms(lat['max'])} | `{lat['spark']}` |"
+                )
     out.append("")
 
-    out += ["## Resource usage (best candidate)", "",
-            "| problem | regs/thread | spills | shared mem | occupancy | DRAM % of peak |",
-            "|---|---:|---:|---:|---:|---:|"]
+    out += [
+        "## Resource usage (best candidate)",
+        "",
+        "| problem | regs/thread | spills | shared mem | occupancy | DRAM % of peak |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
     for p in r["problems"]:
         res = (p.get("best") or {}).get("resources")
         if not res:
@@ -202,9 +279,11 @@ def to_markdown(r: dict[str, Any]) -> str:
         occ = res.get("occupancy_pct")
         occ_s = "-" if occ is None else f"{occ:.0f}% ({res['occupancy_source']})"
         dram = res.get("dram_pct")
-        out.append(f"| `{p['problem']}` | {res.get('registers') or '-'} | {res.get('spills') if res.get('spills') is not None else '-'} | "
-                   f"{res.get('shared_bytes') if res.get('shared_bytes') is not None else '-'} | {occ_s} | "
-                   f"{'-' if dram is None else f'{dram:.0f}%'} |")
+        out.append(
+            f"| `{p['problem']}` | {res.get('registers') or '-'} | {res.get('spills') if res.get('spills') is not None else '-'} | "
+            f"{res.get('shared_bytes') if res.get('shared_bytes') is not None else '-'} | {occ_s} | "
+            f"{'-' if dram is None else f'{dram:.0f}%'} |"
+        )
     out.append("")
 
     failures = [(p["problem"], f) for p in r["problems"] for f in p["compile_failures"]]
@@ -238,8 +317,10 @@ def to_markdown(r: dict[str, Any]) -> str:
 
     out += ["## Reproduce", "", "```bash"]
     params = r.get("params") or {}
-    out.append(f"KP_SEED={params.get('seed', 0)} KP_REPS={params.get('reps', 50)} "
-               f"KP_WARMUP={params.get('warmup', 10)} kernelpilot ...  # see experiment params above")
+    out.append(
+        f"KP_SEED={params.get('seed', 0)} KP_REPS={params.get('reps', 50)} "
+        f"KP_WARMUP={params.get('warmup', 10)} kernelpilot ...  # see experiment params above"
+    )
     out += ["```", "", f"Environment fingerprint: `{json.dumps(r.get('fingerprint'))}`", ""]
     return "\n".join(out)
 
@@ -272,14 +353,20 @@ def _svg_bars(rows: list[tuple[str, float | None]], width: int = 680) -> str:
     h = 22 * len(rows) + 30
     label_w = 220
     scale = (width - label_w - 60) / top
-    parts = [f'<svg viewBox="0 0 {width} {h}" width="100%" role="img" aria-label="speedup per problem">']
+    parts = [
+        f'<svg viewBox="0 0 {width} {h}" width="100%" role="img" aria-label="speedup per problem">'
+    ]
     one_x = label_w + scale * 1.0
     for i, (k, v) in enumerate(rows):
         y = 10 + i * 22
         parts.append(f'<text x="0" y="{y + 13}">{html.escape(k)}</text>')
-        parts.append(f'<rect x="{label_w}" y="{y}" width="{scale * v:.1f}" height="16" rx="2" fill="var(--bar)"/>')
+        parts.append(
+            f'<rect x="{label_w}" y="{y}" width="{scale * v:.1f}" height="16" rx="2" fill="var(--bar)"/>'
+        )
         parts.append(f'<text x="{label_w + scale * v + 6:.1f}" y="{y + 13}">{v:.2f}x</text>')
-    parts.append(f'<line x1="{one_x:.1f}" x2="{one_x:.1f}" y1="4" y2="{h - 20}" stroke="var(--ink)" stroke-dasharray="3 3"/>')
+    parts.append(
+        f'<line x1="{one_x:.1f}" x2="{one_x:.1f}" y1="4" y2="{h - 20}" stroke="var(--ink)" stroke-dasharray="3 3"/>'
+    )
     parts.append(f'<text x="{one_x - 8:.1f}" y="{h - 6}">1x</text></svg>')
     return "".join(parts)
 
@@ -291,22 +378,33 @@ def _svg_curve(curve: list[dict[str, Any]], width: int = 320, height: int = 120)
     n_max = max(p[0] for p in pts)
     top = max(p[1] for p in pts) * 1.08
     lo = min(1.0, min(p[1] for p in pts)) * 0.95
+
     def xy(n, s):
-        return (30 + (n - 1) / max(1, n_max - 1) * (width - 40), height - 18 - (s - lo) / (top - lo) * (height - 30))
-    d = " ".join(f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(xy(*p) for p in pts))
-    x1, y1 = xy(1, 1.0)
-    return (f'<svg viewBox="0 0 {width} {height}" width="{width}" role="img" aria-label="best-so-far speedup">'
-            f'<line x1="30" x2="{width - 10}" y1="{y1:.1f}" y2="{y1:.1f}" stroke="var(--line)"/>'
-            f'<path d="{d}" fill="none" stroke="var(--accent)" stroke-width="2"/>'
-            f'<text x="30" y="{height - 4}">eval 1</text><text x="{width - 50}" y="{height - 4}">eval {n_max}</text>'
-            f'<text x="0" y="12">{top / 1.08:.2f}x</text></svg>')
+        return (
+            30 + (n - 1) / max(1, n_max - 1) * (width - 40),
+            height - 18 - (s - lo) / (top - lo) * (height - 30),
+        )
+
+    d = " ".join(
+        f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(xy(*p) for p in pts)
+    )
+    _x1, y1 = xy(1, 1.0)
+    return (
+        f'<svg viewBox="0 0 {width} {height}" width="{width}" role="img" aria-label="best-so-far speedup">'
+        f'<line x1="30" x2="{width - 10}" y1="{y1:.1f}" y2="{y1:.1f}" stroke="var(--line)"/>'
+        f'<path d="{d}" fill="none" stroke="var(--accent)" stroke-width="2"/>'
+        f'<text x="30" y="{height - 4}">eval 1</text><text x="{width - 50}" y="{height - 4}">eval {n_max}</text>'
+        f'<text x="0" y="12">{top / 1.08:.2f}x</text></svg>'
+    )
 
 
 def to_html(r: dict[str, Any]) -> str:
     e = html.escape
     exp, s = r["experiment"], r["summary"]
-    body = [f"<h1>{e(exp['name'])}</h1><div class=muted>experiment <code>{e(exp['id'])}</code> · "
-            f"{e(exp['strategy'])} · {e(str(s.get('backend', exp['backend'])))}</div>"]
+    body = [
+        f"<h1>{e(exp['name'])}</h1><div class=muted>experiment <code>{e(exp['id'])}</code> · "
+        f"{e(exp['strategy'])} · {e(str(s.get('backend', exp['backend'])))}</div>"
+    ]
     if r["simulated"]:
         body.append(f'<div class="banner">{e(SIM_BANNER)}</div>')
     kpis = [
@@ -316,13 +414,19 @@ def to_html(r: dict[str, Any]) -> str:
         ("compile failures", str(s.get("compile_failed"))),
         ("numerical failures", str(s.get("invalid"))),
     ]
-    body.append('<div class="kpis">' + "".join(f'<div class="kpi"><b>{e(v)}</b><span>{e(k)}</span></div>' for k, v in kpis) + "</div>")
+    body.append(
+        '<div class="kpis">'
+        + "".join(f'<div class="kpi"><b>{e(v)}</b><span>{e(k)}</span></div>' for k, v in kpis)
+        + "</div>"
+    )
     body.append("<h2>Speedup over untuned Triton baseline</h2>")
     body.append(_svg_bars([(p["problem"], p.get("speedup")) for p in r["problems"]]))
 
-    body.append("<h2>Per-problem results</h2><div class=wrap><table><tr><th>problem</th><th class=n>baseline p50</th>"
-                "<th class=n>best p50</th><th class=n>speedup</th><th>best config</th><th>latency (best)</th>"
-                "<th>search progress</th></tr>")
+    body.append(
+        "<h2>Per-problem results</h2><div class=wrap><table><tr><th>problem</th><th class=n>baseline p50</th>"
+        "<th class=n>best p50</th><th class=n>speedup</th><th>best config</th><th>latency (best)</th>"
+        "<th>search progress</th></tr>"
+    )
     for p in r["problems"]:
         best = p.get("best") or {}
         lat = best.get("latency") or {}
@@ -331,20 +435,27 @@ def to_html(r: dict[str, Any]) -> str:
             f"<td class=n>{_fmt_ms(p.get('best_p50'))}</td><td class=n><b>{_fmt_x(p.get('speedup'))}</b></td>"
             f"<td><code>{e(best.get('label', '-'))}</code></td>"
             f"<td><code>{e(lat.get('spark', ''))}</code><br><span class=muted>p95 {_fmt_ms(lat.get('p95'))}</span></td>"
-            f"<td>{_svg_curve(p['curve'])}</td></tr>")
+            f"<td>{_svg_curve(p['curve'])}</td></tr>"
+        )
     body.append("</table></div>")
 
-    body.append("<h2>Failures</h2><div class=wrap><table><tr><th>problem</th><th>candidate</th><th>stage</th><th>detail</th></tr>")
+    body.append(
+        "<h2>Failures</h2><div class=wrap><table><tr><th>problem</th><th>candidate</th><th>stage</th><th>detail</th></tr>"
+    )
     any_fail = False
     for p in r["problems"]:
         for f in p["compile_failures"]:
             any_fail = True
-            body.append(f"<tr><td><code>{e(p['problem'])}</code></td><td><code>{e(f['label'])}</code></td>"
-                        f"<td class=bad>compile ({e(str(f['kind']))})</td><td><code>{e((f['error'] or '')[:300])}</code></td></tr>")
+            body.append(
+                f"<tr><td><code>{e(p['problem'])}</code></td><td><code>{e(f['label'])}</code></td>"
+                f"<td class=bad>compile ({e(str(f['kind']))})</td><td><code>{e((f['error'] or '')[:300])}</code></td></tr>"
+            )
         for f in p["validation_failures"]:
             any_fail = True
-            body.append(f"<tr><td><code>{e(p['problem'])}</code></td><td><code>{e(f['label'])}</code></td>"
-                        f"<td class=bad>{e(f['status'])}</td><td>{e(f['detail'])}</td></tr>")
+            body.append(
+                f"<tr><td><code>{e(p['problem'])}</code></td><td><code>{e(f['label'])}</code></td>"
+                f"<td class=bad>{e(f['status'])}</td><td>{e(f['detail'])}</td></tr>"
+            )
     if not any_fail:
         body.append("<tr><td colspan=4 class=muted>none</td></tr>")
     body.append("</table></div>")
@@ -355,6 +466,10 @@ def to_html(r: dict[str, Any]) -> str:
             if d.get("rationale"):
                 body.append(f"<li><b>{e(d['kind'])}</b> {e(d['rationale'])}</li>")
         body.append("</ol>")
-    body.append(f"<h2>Environment</h2><pre><code>{e(json.dumps(r['environment'], indent=2))}</code></pre>")
-    return (f"<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
-            f"<title>KernelPilot report</title><style>{CSS}</style></head><body><main>{''.join(body)}</main></body></html>")
+    body.append(
+        f"<h2>Environment</h2><pre><code>{e(json.dumps(r['environment'], indent=2))}</code></pre>"
+    )
+    return (
+        f"<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
+        f"<title>KernelPilot report</title><style>{CSS}</style></head><body><main>{''.join(body)}</main></body></html>"
+    )

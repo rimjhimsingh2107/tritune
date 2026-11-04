@@ -3,22 +3,25 @@ import time
 import pytest
 
 pytest.importorskip("fastapi")
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from kernelpilot.config import load_settings  # noqa: E402
-from kernelpilot.demo import SCENARIOS  # noqa: E402
-from kernelpilot.optimize import Context, run_experiment  # noqa: E402
-from kernelpilot.problem import Problem  # noqa: E402
-from kernelpilot.server import create_app  # noqa: E402
+from kernelpilot.config import load_settings
+from kernelpilot.demo import SCENARIOS
+from kernelpilot.optimize import Context, run_experiment
+from kernelpilot.problem import Problem
+from kernelpilot.server import create_app
 
 
 @pytest.fixture
 def client_and_ids(tmp_path):
-    settings = load_settings(backend="sim", home=tmp_path, db_path=tmp_path / "kp.db", reps=10, warmup=1)
+    settings = load_settings(
+        backend="sim", home=tmp_path, db_path=tmp_path / "kp.db", reps=10, warmup=1
+    )
     ctx = Context.create(settings)
     sc = SCENARIOS["invalid-kernel"]
-    agent_id, _ = run_experiment(ctx, [Problem.parse(sc.problem)], "agent", 3, planner="heuristic",
-                                 opening=sc.opening)
+    agent_id, _ = run_experiment(
+        ctx, [Problem.parse(sc.problem)], "agent", 3, planner="heuristic", opening=sc.opening
+    )
     grid_id, _ = run_experiment(ctx, [Problem.parse(sc.problem)], "grid", 3)
     return TestClient(create_app(settings)), agent_id, grid_id
 
@@ -62,8 +65,9 @@ def test_report_downloads(client_and_ids):
 def test_start_run(client_and_ids):
     client, *_ = client_and_ids
     assert client.post("/api/runs", json={"op": "conv"}).status_code == 400
-    job = client.post("/api/runs", json={"op": "reduction", "shape": [65536], "strategy": "random",
-                                         "budget": 2}).json()
+    job = client.post(
+        "/api/runs", json={"op": "reduction", "shape": [65536], "strategy": "random", "budget": 2}
+    ).json()
     for _ in range(100):
         state = client.get(f"/api/runs/{job['id']}").json()
         if state["status"] != "running":

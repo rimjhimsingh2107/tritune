@@ -82,14 +82,16 @@ def _metadata(handles: list[Any]) -> dict[str, Any]:
                 return md.get(name)
             return getattr(md, name, None)
 
-        kernels.append({
-            "name": field("name"),
-            "n_regs": field("n_regs"),
-            "n_spills": field("n_spills"),
-            "shared": field("shared"),
-            "num_warps": field("num_warps"),
-            "num_stages": field("num_stages"),
-        })
+        kernels.append(
+            {
+                "name": field("name"),
+                "n_regs": field("n_regs"),
+                "n_spills": field("n_spills"),
+                "shared": field("shared"),
+                "num_warps": field("num_warps"),
+                "num_stages": field("num_stages"),
+            }
+        )
     if not kernels:
         return {}
     main = kernels[0]
@@ -118,8 +120,12 @@ def _compile(source: str, problem: Problem, seed: int) -> dict[str, Any]:
         except SyntaxError as exc:
             return {"ok": False, "error_kind": "syntax", "error": f"SyntaxError: {exc}"}
         except Exception as exc:
-            return {"ok": False, "error_kind": "triton", "error": f"{type(exc).__name__}: {exc}",
-                    "log": traceback.format_exc(limit=4)}
+            return {
+                "ok": False,
+                "error_kind": "triton",
+                "error": f"{type(exc).__name__}: {exc}",
+                "log": traceback.format_exc(limit=4),
+            }
 
         inputs = to_device(spec.make_inputs(problem, seed))
         try:
@@ -134,9 +140,17 @@ def _compile(source: str, problem: Problem, seed: int) -> dict[str, Any]:
             second = time.perf_counter() - t0
         except Exception as exc:
             name = type(exc).__name__
-            kind = "resources" if "OutOfResources" in name or "out of resource" in str(exc) else "triton"
-            return {"ok": False, "error_kind": kind, "error": f"{name}: {exc}",
-                    "log": traceback.format_exc(limit=6)}
+            kind = (
+                "resources"
+                if "OutOfResources" in name or "out of resource" in str(exc)
+                else "triton"
+            )
+            return {
+                "ok": False,
+                "error_kind": kind,
+                "error": f"{name}: {exc}",
+                "log": traceback.format_exc(limit=6),
+            }
 
         handles = list(getattr(module, "_compiled", []) or [])
         return {
@@ -155,18 +169,34 @@ def _validate(source: str, problem: Problem, seed: int) -> dict[str, Any]:
         try:
             module = load_candidate(source, Path(tmp))
         except Exception as exc:
-            return ValidationResult(False, status="error", error=f"{type(exc).__name__}: {exc}").to_dict()
+            return ValidationResult(
+                False, status="error", error=f"{type(exc).__name__}: {exc}"
+            ).to_dict()
         for p in [problem, *spec.edge_problems(problem)]:
             tensors = to_device(spec.make_inputs(p, seed))
             try:
                 out = module.launch(*tensors)
                 torch.cuda.synchronize()
             except Exception as exc:
-                checks.append(Check(p.key, False, float("inf"), float("inf"), 1.0, 0, 0, 0.0, 0.0,
-                                    message=f"launch raised {type(exc).__name__}: {exc}"))
+                checks.append(
+                    Check(
+                        p.key,
+                        False,
+                        float("inf"),
+                        float("inf"),
+                        1.0,
+                        0,
+                        0,
+                        0.0,
+                        0.0,
+                        message=f"launch raised {type(exc).__name__}: {exc}",
+                    )
+                )
                 continue
             ref = torch_reference(p, tensors)
-            checks.append(compare(out.float().cpu().numpy(), ref.cpu().numpy(), spec.tolerance(p), p.key))
+            checks.append(
+                compare(out.float().cpu().numpy(), ref.cpu().numpy(), spec.tolerance(p), p.key)
+            )
     ok = all(c.ok for c in checks)
     return ValidationResult(ok, checks=checks, status="verified" if ok else "failed").to_dict()
 
@@ -192,8 +222,12 @@ def _benchmark(source: str, problem: Problem, seed: int, warmup: int, reps: int)
             ends[i].record()
         torch.cuda.synchronize()
         samples = [s.elapsed_time(e) for s, e in zip(starts, ends, strict=True)]
-    return {"ok": True, "samples_ms": samples, "warmup": warmup,
-            "method": "cuda events, L2 flushed between reps"}
+    return {
+        "ok": True,
+        "samples_ms": samples,
+        "warmup": warmup,
+        "method": "cuda events, L2 flushed between reps",
+    }
 
 
 NCU_METRICS = {
@@ -213,15 +247,31 @@ def _profile(source: str, problem: Problem, seed: int, ncu: str | None) -> dict[
     from kernelpilot.analysis.ncu import parse_ncu_csv
 
     if not ncu:
-        return {"ok": False, "error": "Nsight Compute (ncu) not found; set KP_NCU or add it to PATH"}
+        return {
+            "ok": False,
+            "error": "Nsight Compute (ncu) not found; set KP_NCU or add it to PATH",
+        }
     with tempfile.TemporaryDirectory(prefix="kp-prof-") as tmp:
         src = Path(tmp) / "candidate_src.py"
         src.write_text(source)
         cmd = [
-            ncu, "--csv", "--page", "raw", "--launch-skip", "3", "--launch-count", "1",
-            "--metrics", ",".join(NCU_METRICS),
-            sys.executable, "-m", "kernelpilot.backends.worker", "--profile-target",
-            str(src), problem.key, str(seed),
+            ncu,
+            "--csv",
+            "--page",
+            "raw",
+            "--launch-skip",
+            "3",
+            "--launch-count",
+            "1",
+            "--metrics",
+            ",".join(NCU_METRICS),
+            sys.executable,
+            "-m",
+            "kernelpilot.backends.worker",
+            "--profile-target",
+            str(src),
+            problem.key,
+            str(seed),
         ]
         try:
             out = subprocess.run(cmd, capture_output=True, text=True, timeout=600, check=False)
@@ -229,15 +279,29 @@ def _profile(source: str, problem: Problem, seed: int, ncu: str | None) -> dict[
             return {"ok": False, "error": "ncu timed out"}
         if out.returncode != 0:
             tail = (out.stderr or out.stdout)[-2000:]
-            hint = " (ERR_NVGPUCTRPERM: needs profiling permissions)" if "ERR_NVGPUCTRPERM" in tail else ""
+            hint = (
+                " (ERR_NVGPUCTRPERM: needs profiling permissions)"
+                if "ERR_NVGPUCTRPERM" in tail
+                else ""
+            )
             return {"ok": False, "error": f"ncu exited {out.returncode}{hint}", "raw": tail}
         metrics, units = parse_ncu_csv(out.stdout, NCU_METRICS)
         if not metrics:
-            return {"ok": False, "error": "ncu produced no metrics for the kernel", "raw": out.stdout[-2000:]}
+            return {
+                "ok": False,
+                "error": "ncu produced no metrics for the kernel",
+                "raw": out.stdout[-2000:],
+            }
         if "duration_ns" in metrics:
             metrics["duration_us"] = metrics.pop("duration_ns") / 1e3
             units["duration_us"] = "us"
-        return {"ok": True, "tool": "ncu", "metrics": metrics, "units": units, "raw": out.stdout[-4000:]}
+        return {
+            "ok": True,
+            "tool": "ncu",
+            "metrics": metrics,
+            "units": units,
+            "raw": out.stdout[-4000:],
+        }
 
 
 def profile_target(src_path: str, problem_key: str, seed: int) -> None:
@@ -262,7 +326,9 @@ def handle(req: dict[str, Any]) -> dict[str, Any]:
     if action == "validate":
         return _validate(source, problem, seed)
     if action == "benchmark":
-        return _benchmark(source, problem, seed, int(req.get("warmup", 10)), int(req.get("reps", 50)))
+        return _benchmark(
+            source, problem, seed, int(req.get("warmup", 10)), int(req.get("reps", 50))
+        )
     if action == "profile":
         return _profile(source, problem, seed, req.get("ncu"))
     raise ValueError(f"unknown action {action!r}")

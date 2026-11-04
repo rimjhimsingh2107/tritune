@@ -62,13 +62,21 @@ class AgentRunner:
         state = AgentState(self.session, problem, b.max_candidates, baseline_id=base.candidate.id)
         registry = ToolRegistry(state)
         briefing = BRIEFING.format(
-            problem=problem.key, baseline_id=base.candidate.id, baseline_label=base.candidate.label,
-            backend=self.session.backend.describe(), max_candidates=b.max_candidates, max_steps=b.max_steps,
+            problem=problem.key,
+            baseline_id=base.candidate.id,
+            baseline_label=base.candidate.label,
+            backend=self.session.backend.describe(),
+            max_candidates=b.max_candidates,
+            max_steps=b.max_steps,
         )
         context: dict[str, Any] = {"baseline_id": base.candidate.id, "problem": problem.key}
-        self.session.decide("start", problem=problem.key, candidate_id=base.candidate.id,
-                            rationale=f"agent run with planner={self.planner.name}",
-                            args={"budget": b.__dict__})
+        self.session.decide(
+            "start",
+            problem=problem.key,
+            candidate_id=base.candidate.id,
+            rationale=f"agent run with planner={self.planner.name}",
+            args={"budget": b.__dict__},
+        )
         self.planner.start(briefing, registry.schemas(), context)
 
         started = time.time()
@@ -119,7 +127,10 @@ class AgentRunner:
                 break
 
         if not state.done:
-            registry.call("save_experiment", {"summary": f"Run stopped ({reason}); kept the best verified candidate."})
+            registry.call(
+                "save_experiment",
+                {"summary": f"Run stopped ({reason}); kept the best verified candidate."},
+            )
         # the baseline is the reference for every speedup, make sure it got measured
         if base.bench is None:
             self.session.benchmark(base)
@@ -134,5 +145,7 @@ class AgentRunner:
             best_id=best.candidate.id if best else None,
             speedup=self.session.speedup(best) if best else None,
         )
-        log.info("agent done", extra=kv(problem=problem.key, reason=reason, speedup=outcome.speedup))
+        log.info(
+            "agent done", extra=kv(problem=problem.key, reason=reason, speedup=outcome.speedup)
+        )
         return outcome

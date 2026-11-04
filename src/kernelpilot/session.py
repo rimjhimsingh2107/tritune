@@ -49,8 +49,12 @@ class Evaluation:
         c = self.candidate
         out: dict[str, Any] = {"candidate_id": c.id, "label": c.label, "status": self.status}
         if self.compile is not None:
-            out["compile"] = {"ok": self.compile.ok, "error": self.compile.error,
-                              "kind": self.compile.error_kind, "ms": self.compile.compile_ms}
+            out["compile"] = {
+                "ok": self.compile.ok,
+                "error": self.compile.error,
+                "kind": self.compile.error_kind,
+                "ms": self.compile.compile_ms,
+            }
         if self.validation is not None:
             out["validation"] = self.validation.summary()
         if self.bench is not None and self.bench.ok:
@@ -115,7 +119,9 @@ class Session:
         self._pinned: dict[str, str] = {}
         self._step = 0
         self.started = time.time()
-        log.info("experiment started", extra=kv(id=self.exp_id, strategy=strategy, backend=backend.name))
+        log.info(
+            "experiment started", extra=kv(id=self.exp_id, strategy=strategy, backend=backend.name)
+        )
 
     @property
     def seed(self) -> int:
@@ -203,14 +209,18 @@ class Session:
             self.store.record_profile(ev.candidate.id, ev.profile)
         return ev.profile
 
-    def evaluate(self, cand: Candidate, reps: int | None = None, profile: bool = False) -> Evaluation:
+    def evaluate(
+        self, cand: Candidate, reps: int | None = None, profile: bool = False
+    ) -> Evaluation:
         ev, dup = self.register(cand)
         if dup:
             return ev
         self.benchmark(ev, reps)
         if profile and ev.measured:
             self.profile(ev)
-        log.info("evaluated", extra=kv(cand=cand.id, label=cand.label, status=ev.status, p50=ev.p50))
+        log.info(
+            "evaluated", extra=kv(cand=cand.id, label=cand.label, status=ev.status, p50=ev.p50)
+        )
         return ev
 
     # -- baselines and bests -------------------------------------------------
@@ -218,8 +228,9 @@ class Session:
     def baseline(self, problem: Problem) -> Evaluation:
         if problem.key not in self._baselines:
             spec = get_spec(problem.op)
-            cand = Candidate.from_config(problem, spec.baseline(problem), origin="baseline",
-                                         note="untuned Triton baseline")
+            cand = Candidate.from_config(
+                problem, spec.baseline(problem), origin="baseline", note="untuned Triton baseline"
+            )
             self._baselines[problem.key] = self.evaluate(cand)
         return self._baselines[problem.key]
 
@@ -227,8 +238,9 @@ class Session:
         """Register the baseline without evaluating it (the agent drives that itself)."""
         if problem.key not in self._baselines:
             spec = get_spec(problem.op)
-            cand = Candidate.from_config(problem, spec.baseline(problem), origin="baseline",
-                                         note="untuned Triton baseline")
+            cand = Candidate.from_config(
+                problem, spec.baseline(problem), origin="baseline", note="untuned Triton baseline"
+            )
             self._baselines[problem.key], _ = self.register(cand)
         return self._baselines[problem.key]
 
@@ -253,7 +265,9 @@ class Session:
         pinned = self.evals.get(self._pinned.get(problem.key, ""))
         if pinned is not None and pinned.measured:
             return pinned
-        measured = [e for e in self.evaluations(problem) if e.measured and e.validation and e.validation.ok]
+        measured = [
+            e for e in self.evaluations(problem) if e.measured and e.validation and e.validation.ok
+        ]
         return min(measured, key=lambda e: (e.p50, e.p95 or e.p50), default=None)
 
     # -- wrap up ---------------------------------------------------------------
@@ -307,5 +321,7 @@ class Session:
         if extra:
             summary.update(extra)
         self.store.finish_experiment(self.exp_id, status, summary)
-        log.info("experiment finished", extra=kv(id=self.exp_id, geomean=summary["geomean_speedup"]))
+        log.info(
+            "experiment finished", extra=kv(id=self.exp_id, geomean=summary["geomean_speedup"])
+        )
         return summary
