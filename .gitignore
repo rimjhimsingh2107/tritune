@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.kernelpilot/
+*.db
+*.sqlite
+reports/
+node_modules/
+dashboard/dist/
+.DS_Store
+.env
