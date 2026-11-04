@@ -18,6 +18,7 @@ class Softmax(KernelSpec):
     name = "softmax"
     summary = "Row-wise softmax over the last dim of an (M, N) matrix."
     inputs = ("x",)
+    dtypes = ("fp16", "fp32")
     default_shapes = ((4096, 1024), (8192, 512), (2048, 4096), (1823, 781))
     variants = {
         "single_pass": Variant(

@@ -363,7 +363,7 @@ def benchmark_candidate(st: AgentState, a: BenchmarkIn) -> BenchmarkOut:
 
     if st.incumbent_id is None:
         st.incumbent_id = ev.candidate.id
-        out.accepted, out.verdict = True, "first measured candidate becomes the incumbent"
+        out.accepted, out.verdict = True, "first measured candidate, this is the incumbent to beat"
         st.decide("accept", candidate_id=ev.candidate.id, rationale=out.verdict,
                   evidence={"p50_ms": res.p50_ms})
     elif ev.candidate.id != st.incumbent_id and first_time:
