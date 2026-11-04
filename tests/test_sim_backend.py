@@ -7,19 +7,8 @@ from kernelpilot.backends.sim_engine import identify
 from kernelpilot.cache import ResultCache
 from kernelpilot.candidate import Candidate
 from kernelpilot.config import load_settings
-from kernelpilot.env import detect
 from kernelpilot.kernels import get_spec
 from kernelpilot.problem import KernelConfig, Problem
-
-
-@pytest.fixture(scope="module")
-def env():
-    return detect()
-
-
-@pytest.fixture
-def backend(env):
-    return CachedBackend(WorkerBackend("sim", InProcessExecutor(), env), ResultCache(":memory:"))
 
 
 def cand(key, **changes):
