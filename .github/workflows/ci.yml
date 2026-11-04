@@ -1,0 +1,53 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: ruff format --check src tests
+      - name: tests (simulated backend, no GPU on hosted runners)
+        run: pytest -q
+        env:
+          KP_BACKEND: sim
+      - name: demo smoke test
+        run: kernelpilot demo --out /tmp/demo && ls /tmp/demo
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # needs a self-hosted runner with an NVIDIA GPU; only runs when one is registered
+  gpu:
+    if: github.event_name == 'push' && vars.HAS_GPU_RUNNER == 'true'
+    runs-on: [self-hosted, gpu]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e ".[dev,gpu]"
+      - run: pytest -q -m gpu tests/test_gpu.py
+      - run: kernelpilot bakeoff --suite quick --budget 6 --backend triton
