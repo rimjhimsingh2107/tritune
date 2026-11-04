@@ -112,6 +112,7 @@ class Session:
         self.order: list[str] = []
         self._by_hash: dict[tuple[str, str], str] = {}
         self._baselines: dict[str, Evaluation] = {}
+        self._pinned: dict[str, str] = {}
         self._step = 0
         self.started = time.time()
         log.info("experiment started", extra=kv(id=self.exp_id, strategy=strategy, backend=backend.name))
@@ -222,6 +223,15 @@ class Session:
             self._baselines[problem.key] = self.evaluate(cand)
         return self._baselines[problem.key]
 
+    def register_baseline(self, problem: Problem) -> Evaluation:
+        """Register the baseline without evaluating it (the agent drives that itself)."""
+        if problem.key not in self._baselines:
+            spec = get_spec(problem.op)
+            cand = Candidate.from_config(problem, spec.baseline(problem), origin="baseline",
+                                         note="untuned Triton baseline")
+            self._baselines[problem.key], _ = self.register(cand)
+        return self._baselines[problem.key]
+
     def speedup(self, ev: Evaluation) -> float | None:
         base = self._baselines.get(ev.candidate.problem.key)
         if base is None or base.p50 is None or ev.p50 is None:
@@ -234,7 +244,15 @@ class Session:
             evs = [e for e in evs if e.candidate.problem.key == problem.key]
         return evs
 
+    def pin(self, problem: Problem, cand_id: str) -> None:
+        """Make an explicit choice the 'best' (the agent keeps its incumbent
+        even if a rejected candidate was faster by less than the noise)."""
+        self._pinned[problem.key] = cand_id
+
     def best(self, problem: Problem) -> Evaluation | None:
+        pinned = self.evals.get(self._pinned.get(problem.key, ""))
+        if pinned is not None and pinned.measured:
+            return pinned
         measured = [e for e in self.evaluations(problem) if e.measured and e.validation and e.validation.ok]
         return min(measured, key=lambda e: (e.p50, e.p95 or e.p50), default=None)
 
