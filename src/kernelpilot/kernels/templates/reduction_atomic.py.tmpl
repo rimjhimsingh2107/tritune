@@ -1,0 +1,35 @@
+import torch
+import triton
+import triton.language as tl
+
+BLOCK_SIZE = $BLOCK_SIZE
+TILES = $TILES
+NUM_WARPS = $num_warps
+NUM_STAGES = $num_stages
+
+_compiled = []
+
+
+@triton.jit
+def sum_kernel(x_ptr, out_ptr, n, BLOCK_SIZE: tl.constexpr, TILES: tl.constexpr):
+    # each program folds TILES blocks into a register accumulator,
+    # then does a single atomic add. more TILES = fewer atomics.
+    pid = tl.program_id(0)
+    base = pid * BLOCK_SIZE * TILES
+    acc = tl.zeros([BLOCK_SIZE], dtype=$ACC_DTYPE)
+    for t in tl.static_range(TILES):
+        offs = base + t * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+        acc += tl.load(x_ptr + offs, mask=offs < n, other=0.0).to($ACC_DTYPE)
+    tl.atomic_add(out_ptr, tl.sum(acc, axis=0).to(tl.float32))
+
+
+def launch(x):
+    n = x.numel()
+    out = torch.zeros(1, dtype=torch.float32, device=x.device)
+    grid = (triton.cdiv(n, BLOCK_SIZE * TILES),)
+    handle = sum_kernel[grid](
+        x, out, n, BLOCK_SIZE=BLOCK_SIZE, TILES=TILES,
+        num_warps=NUM_WARPS, num_stages=NUM_STAGES,
+    )
+    _compiled[:] = [handle]
+    return out

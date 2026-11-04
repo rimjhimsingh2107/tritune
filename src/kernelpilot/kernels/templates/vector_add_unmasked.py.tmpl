@@ -1,0 +1,33 @@
+import torch
+import triton
+import triton.language as tl
+
+BLOCK_SIZE = $BLOCK_SIZE
+NUM_WARPS = $num_warps
+NUM_STAGES = $num_stages
+
+_compiled = []
+
+
+@triton.jit
+def add_kernel(x_ptr, y_ptr, out_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
+    # no bounds mask: only correct when n_elements % BLOCK_SIZE == 0
+    pid = tl.program_id(axis=0)
+    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    x = tl.load(x_ptr + offsets)
+    y = tl.load(y_ptr + offsets)
+    tl.store(out_ptr + offsets, x + y)
+
+
+def launch(x, y):
+    n = x.numel()
+    padded = triton.cdiv(n, BLOCK_SIZE) * BLOCK_SIZE
+    # over-allocate the output so the tail store doesn't scribble on other memory;
+    # the inputs are *not* padded, which is exactly the bug
+    out = torch.empty(padded, dtype=x.dtype, device=x.device)
+    grid = (triton.cdiv(n, BLOCK_SIZE),)
+    handle = add_kernel[grid](
+        x, y, out, n, BLOCK_SIZE=BLOCK_SIZE, num_warps=NUM_WARPS, num_stages=NUM_STAGES
+    )
+    _compiled[:] = [handle]
+    return out[:n]

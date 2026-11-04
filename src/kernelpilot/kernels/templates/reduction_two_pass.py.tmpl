@@ -1,0 +1,41 @@
+import torch
+import triton
+import triton.language as tl
+
+BLOCK_SIZE = $BLOCK_SIZE
+FINAL_BLOCK = 1024
+NUM_WARPS = $num_warps
+NUM_STAGES = $num_stages
+
+_compiled = []
+
+
+@triton.jit
+def partial_sums(x_ptr, part_ptr, n, BLOCK_SIZE: tl.constexpr):
+    pid = tl.program_id(0)
+    offs = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    x = tl.load(x_ptr + offs, mask=offs < n, other=0.0).to(tl.float32)
+    tl.store(part_ptr + pid, tl.sum(x, axis=0))
+
+
+@triton.jit
+def final_sum(part_ptr, out_ptr, n_parts, FINAL_BLOCK: tl.constexpr):
+    # deterministic: a single program walks every partial in a fixed order
+    acc = tl.zeros([FINAL_BLOCK], dtype=tl.float32)
+    for start in range(0, n_parts, FINAL_BLOCK):
+        offs = start + tl.arange(0, FINAL_BLOCK)
+        acc += tl.load(part_ptr + offs, mask=offs < n_parts, other=0.0)
+    tl.store(out_ptr, tl.sum(acc, axis=0))
+
+
+def launch(x):
+    n = x.numel()
+    n_parts = triton.cdiv(n, BLOCK_SIZE)
+    parts = torch.empty(n_parts, dtype=torch.float32, device=x.device)
+    out = torch.empty(1, dtype=torch.float32, device=x.device)
+    h1 = partial_sums[(n_parts,)](
+        x, parts, n, BLOCK_SIZE=BLOCK_SIZE, num_warps=NUM_WARPS, num_stages=NUM_STAGES
+    )
+    h2 = final_sum[(1,)](parts, out, n_parts, FINAL_BLOCK=FINAL_BLOCK, num_warps=4)
+    _compiled[:] = [h1, h2]
+    return out

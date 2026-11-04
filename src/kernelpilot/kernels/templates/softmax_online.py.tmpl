@@ -1,0 +1,49 @@
+import torch
+import triton
+import triton.language as tl
+
+BLOCK_N = $BLOCK_N
+NUM_WARPS = $num_warps
+NUM_STAGES = $num_stages
+
+_compiled = []
+
+
+@triton.jit
+def softmax_kernel(out_ptr, in_ptr, in_stride, out_stride, n_cols, BLOCK_N: tl.constexpr):
+    # online softmax (Milakov & Gimelshein): running max + rescaled running sum,
+    # so the row can be wider than one block. two reads, one write.
+    row = tl.program_id(0)
+    row_in = in_ptr + row * in_stride
+    m = tl.full([BLOCK_N], float("-inf"), tl.float32)
+    s = tl.zeros([BLOCK_N], dtype=tl.float32)
+    for start in range(0, n_cols, BLOCK_N):
+        cols = start + tl.arange(0, BLOCK_N)
+        x = tl.load(row_in + cols, mask=cols < n_cols, other=float("-inf")).to(tl.float32)
+        m_new = tl.maximum(m, x)
+        seen = m_new != float("-inf")
+        alpha = tl.where(seen, tl.exp(m - m_new), 0.0)
+        p = tl.where(seen, tl.exp(x - m_new), 0.0)
+        s = s * alpha + p
+        m = m_new
+    row_max = tl.max(m, axis=0)
+    den = tl.sum(tl.where(m != float("-inf"), s * tl.exp(m - row_max), 0.0), axis=0)
+
+    row_out = out_ptr + row * out_stride
+    for start in range(0, n_cols, BLOCK_N):
+        cols = start + tl.arange(0, BLOCK_N)
+        mask = cols < n_cols
+        x = tl.load(row_in + cols, mask=mask, other=float("-inf")).to(tl.float32)
+        y = tl.exp(x - row_max) / den
+        tl.store(row_out + cols, y.to(out_ptr.dtype.element_ty), mask=mask)
+
+
+def launch(x):
+    n_rows, n_cols = x.shape
+    out = torch.empty_like(x)
+    handle = softmax_kernel[(n_rows,)](
+        out, x, x.stride(0), out.stride(0), n_cols,
+        BLOCK_N=BLOCK_N, num_warps=NUM_WARPS, num_stages=NUM_STAGES,
+    )
+    _compiled[:] = [handle]
+    return out
