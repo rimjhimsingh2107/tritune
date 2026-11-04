@@ -1,0 +1,6 @@
+==PROF== Connected to process 41233 (/usr/bin/python3.11)
+==PROF== Profiling "matmul_kernel" - 0: 0%....50%....100% - 9 passes
+==PROF== Disconnected from process 41233
+"ID","Process ID","Process Name","Host Name","Kernel Name","Context","Stream","Block Size","Grid Size","Device","CC","dram__throughput.avg.pct_of_peak_sustained_elapsed","gpu__time_duration.sum","launch__registers_per_thread","launch__shared_mem_per_block_dynamic","sm__throughput.avg.pct_of_peak_sustained_elapsed","sm__warps_active.avg.pct_of_peak_sustained_active"
+"","","","","","","","","","","","%","nsecond","register/thread","byte/block","%","%"
+"0","41233","python3.11","gpu-box","matmul_kernel","1","7","(128, 1, 1)","(1024, 1, 1)","0","8.0","61.37","1,412,544","168","98,304","72.85","23.94"
