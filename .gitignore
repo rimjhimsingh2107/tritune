@@ -14,3 +14,4 @@ node_modules/
 dashboard/dist/
 .DS_Store
 .env
+.claude/
