@@ -1,14 +1,14 @@
 import pytest
 
-from kernelpilot.analysis.compare import compare_experiments
-from kernelpilot.candidate import Candidate
-from kernelpilot.kernels import get_spec
-from kernelpilot.problem import Problem
-from kernelpilot.report import build_report, to_html, to_json, to_markdown
-from kernelpilot.session import Session
-from kernelpilot.stats import compare_latency, geomean
-from kernelpilot.suites import SUITES, suite_problems
-from kernelpilot.tuner import grid_configs, random_configs, run_search
+from tritune.analysis.compare import compare_experiments
+from tritune.candidate import Candidate
+from tritune.kernels import get_spec
+from tritune.problem import Problem
+from tritune.report import build_report, to_html, to_json, to_markdown
+from tritune.session import Session
+from tritune.stats import compare_latency, geomean
+from tritune.suites import SUITES, suite_problems
+from tritune.tuner import grid_configs, random_configs, run_search
 
 
 def make_session(store, backend, settings, env, problems, strategy="grid", **params):

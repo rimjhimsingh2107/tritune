@@ -22,7 +22,7 @@ export default function App() {
   return (
     <>
       <header className="top">
-        <a className="brand" href="#/"><Logo />KernelPilot</a>
+        <a className="brand" href="#/"><Logo />TriTune</a>
         <nav>
           <a href="#/" className={!page || page === "exp" ? "on" : ""}>experiments</a>
           <a href="#/compare" className={page === "compare" ? "on" : ""}>compare</a>

@@ -1,6 +1,6 @@
-# KernelPilot
+# TriTune
 
-KernelPilot is a workbench for optimizing Triton GPU kernels with an agent that has to *earn* every change.
+TriTune is a workbench for optimizing Triton GPU kernels with an agent that has to *earn* every change.
 
 The agent doesn't write a kernel and hope. It reads compiler metadata (registers, spills, shared memory), profiler counters and PTX, forms one hypothesis at a time, generates a candidate, compiles it, checks it against an fp64 reference, benchmarks it, and keeps it only if it beats the current best by more than measurement noise. Every step is stored in SQLite, so any change in the final kernel can be traced back to the measurement that motivated it.
 
@@ -75,8 +75,8 @@ flowchart LR
 ## Install
 
 ```bash
-git clone https://github.com/rimjhimsingh2107/kernelpilot.git
-cd kernelpilot
+git clone https://github.com/rimjhimsingh2107/tritune.git
+cd tritune
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"            # CLI, server, tests
 pip install -e ".[gpu]"            # torch + triton, on a Linux box with an NVIDIA GPU
@@ -86,7 +86,7 @@ pip install -e ".[anthropic]"      # optional, for the LLM planner
 Check what you've got:
 
 ```bash
-kernelpilot doctor
+tritune doctor
 ```
 
 On a machine without CUDA it'll tell you torch/triton/driver are missing and that it'll use the simulated backend.
@@ -95,31 +95,31 @@ Dashboard (Node 20+):
 
 ```bash
 cd dashboard && npm install && npm run build && cd ..
-kernelpilot serve      # http://127.0.0.1:8000
+tritune serve      # http://127.0.0.1:8000
 ```
 
-For dashboard development, run `kernelpilot serve` and `npm run dev` in `dashboard/` (Vite proxies `/api` to port 8000).
+For dashboard development, run `tritune serve` and `npm run dev` in `dashboard/` (Vite proxies `/api` to port 8000).
 
 ## Quick tour
 
 ```bash
-kernelpilot demo                                  # five scripted-opening scenarios, ~10 s, simulated
-kernelpilot list                                  # operators, variants, suites
-kernelpilot test softmax --all-variants           # correctness of every variant, including the broken ones
-kernelpilot benchmark matmul --shape 2048x2048x2048 --dtype fp16
-kernelpilot optimize softmax --strategy agent --shape 1024x16384 --dtype fp32
-kernelpilot optimize matmul --strategy grid --budget 16
-kernelpilot bakeoff --suite standard --budget 8   # agent vs grid vs random, same budget
-kernelpilot compare                               # latest agent run vs latest autotuner run
-kernelpilot report --format all                   # md + html + json into ./reports
-kernelpilot runs                                  # experiment history
+tritune demo                                  # five scripted-opening scenarios, ~10 s, simulated
+tritune list                                  # operators, variants, suites
+tritune test softmax --all-variants           # correctness of every variant, including the broken ones
+tritune benchmark matmul --shape 2048x2048x2048 --dtype fp16
+tritune optimize softmax --strategy agent --shape 1024x16384 --dtype fp32
+tritune optimize matmul --strategy grid --budget 16
+tritune bakeoff --suite standard --budget 8   # agent vs grid vs random, same budget
+tritune compare                               # latest agent run vs latest autotuner run
+tritune report --format all                   # md + html + json into ./reports
+tritune runs                                  # experiment history
 ```
 
 Every command takes `--backend auto|triton|sim`. `auto` uses Triton when torch, triton and a CUDA device are all present, and the simulator otherwise.
 
 ### The demo
 
-`kernelpilot demo` runs five scenarios end to end through the normal planner, tools, session, store and report code. The only scripted part is the *first* candidate in four of them, which forces the agent into a specific mistake so you can watch it recover:
+`tritune demo` runs five scenarios end to end through the normal planner, tools, session, store and report code. The only scripted part is the *first* candidate in four of them, which forces the agent into a specific mistake so you can watch it recover:
 
 | scenario | what happens |
 |---|---|
@@ -172,12 +172,12 @@ Inputs and outputs are pydantic models, so the same definitions produce JSON Sch
 
 Changes that already measured slower are not suggested again, and configs that were already evaluated are filtered out.
 
-**Planners.** `HeuristicPlanner` follows the recommender and needs no API key. `LLMPlanner` gets the same tools and can use the recommender as a second opinion or ignore it. Set `KP_LLM_PROVIDER=anthropic` (default model `claude-opus-5-5`, uses the official SDK; server-side refusal fallback on by default, `KP_ANTHROPIC_FALLBACKS=0` to turn it off) or `KP_LLM_PROVIDER=openai` with `KP_LLM_MODEL`. `--planner auto` picks the LLM if one is configured and falls back to the heuristic planner otherwise.
+**Planners.** `HeuristicPlanner` follows the recommender and needs no API key. `LLMPlanner` gets the same tools and can use the recommender as a second opinion or ignore it. Set `TRITUNE_LLM_PROVIDER=anthropic` (default model `claude-opus-5-5`, uses the official SDK; server-side refusal fallback on by default, `TRITUNE_ANTHROPIC_FALLBACKS=0` to turn it off) or `TRITUNE_LLM_PROVIDER=openai` with `TRITUNE_LLM_MODEL`. `--planner auto` picks the LLM if one is configured and falls back to the heuristic planner otherwise.
 
 ## The deterministic autotuner
 
 - **grid**: walks the full cartesian space with an even stride when the budget is smaller than the grid. Plain truncation would only ever see the first variant and the smallest tiles.
-- **random**: seeded sampling without replacement (`--seed` / `KP_SEED`).
+- **random**: seeded sampling without replacement (`--seed` / `TRITUNE_SEED`).
 - **halving**: successive halving. Every config gets compiled and validated once and timed with a few reps; the best 1/η (η=3) are re-timed with η× more reps until one is left or the rep cap is reached.
 
 All three exclude the baseline config, deduplicate, and pick the winner purely by measured p50 among verified candidates.
@@ -217,7 +217,7 @@ What I take from this, with the caveat that it's a model and not a GPU:
 - On reductions, random search does as well or better. The interesting configs there (big `TILES`, particular block sizes) are a fairly flat region that random sampling hits easily, and the agent's one-step local search is slower to wander across it.
 - A small 1-2% gap is within what the noise threshold treats as a tie. Don't over-read single-problem differences.
 
-Reproduce with `kernelpilot bakeoff --suite standard --budget 8 --backend sim`. On real hardware, drop `--backend sim` and the same command produces measured numbers. The full report for the agent run is in [docs/example-report.md](docs/example-report.md).
+Reproduce with `tritune bakeoff --suite standard --budget 8 --backend sim`. On real hardware, drop `--backend sim` and the same command produces measured numbers. The full report for the agent run is in [docs/example-report.md](docs/example-report.md).
 
 ![compare page](docs/img/compare.jpg)
 
@@ -228,13 +228,13 @@ Reproduce with `kernelpilot bakeoff --suite standard --budget 8 --backend sim`. 
 - The check is `|out - ref| <= atol + rtol * |ref|`, with tolerances per op and dtype. Matmul scales `atol` with `sqrt(K)`; fp32 matmul allows for tf32 since `tl.dot` uses it by default. Reductions are tight (rtol 2e-5) for both dtypes because the accumulator must be fp32 either way.
 - Results include max abs/rel error, mismatch fraction, NaN/Inf counts and the worst index.
 - Inputs are generated from `(seed, shape, dtype)`, so every run sees the same data.
-- Some variants are broken on purpose (`unmasked` add, `naive` softmax, fp16-accumulator matmul and reduction). They're excluded from autotuner search spaces and exist so the failure paths get exercised for real. `kernelpilot test softmax --all-variants` shows them failing.
+- Some variants are broken on purpose (`unmasked` add, `naive` softmax, fp16-accumulator matmul and reduction). They're excluded from autotuner search spaces and exist so the failure paths get exercised for real. `tritune test softmax --all-variants` shows them failing.
 
 In simulated mode, validation runs on a reduced shape for big problems (matmul dims capped at 1024 plus the original remainder mod 64, softmax rows capped at 2048) to keep CPU emulation fast. The check records which shape it actually ran.
 
 ## Benchmarking
 
-- Timing uses CUDA events around each launch, with a 256 MB buffer zeroed between reps to flush L2 (same idea as `triton.testing.do_bench`), after a configurable warmup (`KP_WARMUP`, default 10; `KP_REPS`, default 50).
+- Timing uses CUDA events around each launch, with a 256 MB buffer zeroed between reps to flush L2 (same idea as `triton.testing.do_bench`), after a configurable warmup (`TRITUNE_WARMUP`, default 10; `TRITUNE_REPS`, default 50).
 - Reported: all samples, p50, p95, mean, std, min, max.
 - Compile time is the first launch minus a warm launch, with a fresh `TRITON_CACHE_DIR` per job so Triton's own cache doesn't hide it.
 - Speedup is always relative to the **untuned Triton baseline**: the straightforward config you'd write from the Triton tutorials (`BLOCK_SIZE=1024` / `num_warps=4` for elementwise and reduction, whole-row single-pass softmax with 4 warps, 64x64x32 row-major matmul with 2 stages). It's defined in each spec's `baseline()`.
@@ -247,14 +247,14 @@ Compile, validate, benchmark and profile results are cached in the same SQLite f
 
 ```
 stage + candidate source hash + problem (op, shape, dtype) + stage knobs (seed, warmup, reps)
-      + environment fingerprint (backend, GPU name, compute capability, driver, CUDA, torch, triton, kernelpilot version)
+      + environment fingerprint (backend, GPU name, compute capability, driver, CUDA, torch, triton, tritune version)
 ```
 
-Change the GPU, upgrade Triton or edit one character of the kernel and you get a miss. Timeouts and crashes are never cached since they might be transient. `kernelpilot cache` shows stats, `kernelpilot cache --clear` wipes it, `KP_CACHE=0` disables it.
+Change the GPU, upgrade Triton or edit one character of the kernel and you get a miss. Timeouts and crashes are never cached since they might be transient. `tritune cache` shows stats, `tritune cache --clear` wipes it, `TRITUNE_CACHE=0` disables it.
 
 ## Experiment database
 
-`.kernelpilot/kernelpilot.db` (override with `KP_HOME` / `KP_DB`) has three main tables:
+`.tritune/tritune.db` (override with `TRITUNE_HOME` / `TRITUNE_DB`) has three main tables:
 
 - `experiments`: strategy, target problems, params (budget, seed, reps, planner), full detected environment, the cache fingerprint, and the final summary
 - `candidates`: source and hash, config, parent, origin, every compile/validation/benchmark/profile result including raw timing samples, status, speedup, and whether it was retained
@@ -267,7 +267,7 @@ So for any retained candidate you can walk back: which hypothesis produced it, w
 Each report ends with the params and environment fingerprint. To rerun:
 
 ```bash
-KP_SEED=0 KP_REPS=50 KP_WARMUP=10 kernelpilot bakeoff --suite standard --budget 8
+TRITUNE_SEED=0 TRITUNE_REPS=50 TRITUNE_WARMUP=10 tritune bakeoff --suite standard --budget 8
 ```
 
 The simulated backend is fully deterministic: same seed, same results, bit for bit. On hardware the inputs and the search order are deterministic but timings vary run to run, which is what the noise threshold is for. The heuristic planner is deterministic given the same measurements. LLM planners are not.
@@ -276,16 +276,16 @@ The simulated backend is fully deterministic: same seed, same results, bit for b
 
 | variable | default | |
 |---|---|---|
-| `KP_BACKEND` | `auto` | `auto`, `triton` or `sim` |
-| `KP_HOME` | `.kernelpilot` | where the database lives |
-| `KP_DB` | `$KP_HOME/kernelpilot.db` | |
-| `KP_ISOLATION` | `subprocess` for triton, `inprocess` for sim | |
-| `KP_TIMEOUT` | `120` | seconds per worker job |
-| `KP_SEED` / `KP_REPS` / `KP_WARMUP` | `0` / `50` / `10` | |
-| `KP_CACHE` | `1` | |
-| `KP_LLM_PROVIDER` / `KP_LLM_MODEL` | `none` | `anthropic` or `openai` |
-| `KP_NCU` | found on PATH | path to Nsight Compute |
-| `KP_LOG_LEVEL` / `KP_LOG_JSON` | `WARNING` / `0` | structured logs to stderr |
+| `TRITUNE_BACKEND` | `auto` | `auto`, `triton` or `sim` |
+| `TRITUNE_HOME` | `.tritune` | where the database lives |
+| `TRITUNE_DB` | `$TRITUNE_HOME/tritune.db` | |
+| `TRITUNE_ISOLATION` | `subprocess` for triton, `inprocess` for sim | |
+| `TRITUNE_TIMEOUT` | `120` | seconds per worker job |
+| `TRITUNE_SEED` / `TRITUNE_REPS` / `TRITUNE_WARMUP` | `0` / `50` / `10` | |
+| `TRITUNE_CACHE` | `1` | |
+| `TRITUNE_LLM_PROVIDER` / `TRITUNE_LLM_MODEL` | `none` | `anthropic` or `openai` |
+| `TRITUNE_NCU` | found on PATH | path to Nsight Compute |
+| `TRITUNE_LOG_LEVEL` / `TRITUNE_LOG_JSON` | `WARNING` / `0` | structured logs to stderr |
 
 ## Testing
 

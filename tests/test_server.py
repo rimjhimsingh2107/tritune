@@ -5,17 +5,17 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from kernelpilot.config import load_settings
-from kernelpilot.demo import SCENARIOS
-from kernelpilot.optimize import Context, run_experiment
-from kernelpilot.problem import Problem
-from kernelpilot.server import create_app
+from tritune.config import load_settings
+from tritune.demo import SCENARIOS
+from tritune.optimize import Context, run_experiment
+from tritune.problem import Problem
+from tritune.server import create_app
 
 
 @pytest.fixture
 def client_and_ids(tmp_path):
     settings = load_settings(
-        backend="sim", home=tmp_path, db_path=tmp_path / "kp.db", reps=10, warmup=1
+        backend="sim", home=tmp_path, db_path=tmp_path / "tt.db", reps=10, warmup=1
     )
     ctx = Context.create(settings)
     sc = SCENARIOS["invalid-kernel"]

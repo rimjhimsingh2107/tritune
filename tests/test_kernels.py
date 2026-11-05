@@ -3,9 +3,9 @@ import ast
 import numpy as np
 import pytest
 
-from kernelpilot.correctness import compare
-from kernelpilot.kernels import REGISTRY, get_spec
-from kernelpilot.problem import KernelConfig, Problem
+from tritune.correctness import compare
+from tritune.kernels import REGISTRY, get_spec
+from tritune.problem import KernelConfig, Problem
 
 SMALL = {
     "vector_add": (5000,),
@@ -143,7 +143,7 @@ def test_check_catches_bad_launch_params():
 
 
 def test_compare_flags_shape_mismatch_and_nans():
-    from kernelpilot.kernels.base import Tolerance
+    from tritune.kernels.base import Tolerance
 
     tol = Tolerance(1e-6, 1e-6)
     c = compare(np.zeros(3), np.zeros(4), tol, "x")

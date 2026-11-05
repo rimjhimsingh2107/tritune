@@ -3,17 +3,17 @@ import json
 import pytest
 from typer.testing import CliRunner
 
-from kernelpilot.cli import app
+from tritune.cli import app
 
 runner = CliRunner()
 
 
 @pytest.fixture(autouse=True)
 def isolated_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("KP_HOME", str(tmp_path / "home"))
-    monkeypatch.setenv("KP_BACKEND", "sim")
-    monkeypatch.setenv("KP_REPS", "10")
-    monkeypatch.setenv("KP_WARMUP", "1")
+    monkeypatch.setenv("TRITUNE_HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("TRITUNE_BACKEND", "sim")
+    monkeypatch.setenv("TRITUNE_REPS", "10")
+    monkeypatch.setenv("TRITUNE_WARMUP", "1")
     monkeypatch.chdir(tmp_path)
 
 
@@ -82,7 +82,7 @@ def test_bad_inputs_give_clean_errors():
 def test_triton_backend_unavailable_message(env, monkeypatch):
     if env.can_run_triton:
         pytest.skip("GPU present")
-    monkeypatch.setenv("KP_BACKEND", "triton")
+    monkeypatch.setenv("TRITUNE_BACKEND", "triton")
     r = runner.invoke(app, ["benchmark", "softmax"])
     assert r.exit_code == 2 and "--backend sim" in r.output
 

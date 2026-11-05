@@ -175,7 +175,7 @@ export function ExperimentView({ id }: { id: string }) {
           <button className="btn" onClick={() => { exp.reload(); trace.reload(); }}>refresh</button>
         </div>
       </div>
-      {e.simulated ? <div className="banner"><b>Simulated results.</b> No GPU was used: latencies and profiler counters come from KernelPilot's analytic model and numerics were emulated on the CPU. Useful for exercising the workflow, not for quoting performance.</div> : null}
+      {e.simulated ? <div className="banner"><b>Simulated results.</b> No GPU was used: latencies and profiler counters come from TriTune's analytic model and numerics were emulated on the CPU. Useful for exercising the workflow, not for quoting performance.</div> : null}
       {s && (
         <div className="kpis">
           <div className="kpi"><b>{x(s.geomean_speedup, 3)}</b><span>geomean speedup ({s.geomean_over}/{s.problems_total})</span></div>

@@ -98,7 +98,7 @@ export function ExperimentList() {
                 <td className="sub">{ago(e.created_at)}</td>
               </tr>
             ))}
-            {data && !data.length && <tr><td colSpan={8} className="sub">No experiments yet. Start one above, or run <code>kernelpilot demo</code>.</td></tr>}
+            {data && !data.length && <tr><td colSpan={8} className="sub">No experiments yet. Start one above, or run <code>tritune demo</code>.</td></tr>}
           </tbody>
         </table>
       </div>

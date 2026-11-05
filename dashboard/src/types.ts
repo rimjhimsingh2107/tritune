@@ -1,4 +1,4 @@
-// Shapes returned by the FastAPI backend (src/kernelpilot/server.py).
+// Shapes returned by the FastAPI backend (src/tritune/server.py).
 // Non-finite floats arrive as the strings "inf" / "-inf" / "nan".
 export type Num = number | "inf" | "-inf" | "nan" | null;
 

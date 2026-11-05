@@ -1,6 +1,6 @@
-from kernelpilot.analysis.static_check import lint
-from kernelpilot.kernels import REGISTRY
-from kernelpilot.problem import Problem
+from tritune.analysis.static_check import lint
+from tritune.kernels import REGISTRY
+from tritune.problem import Problem
 
 
 def _baseline_src(op, variant=None):

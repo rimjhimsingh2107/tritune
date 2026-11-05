@@ -23,9 +23,9 @@ jobs:
       - name: tests (simulated backend, no GPU on hosted runners)
         run: pytest -q
         env:
-          KP_BACKEND: sim
+          TRITUNE_BACKEND: sim
       - name: demo smoke test
-        run: kernelpilot demo --out /tmp/demo && ls /tmp/demo
+        run: tritune demo --out /tmp/demo && ls /tmp/demo
 
   dashboard:
     runs-on: ubuntu-latest
@@ -50,4 +50,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: pip install -e ".[dev,gpu]"
       - run: pytest -q -m gpu tests/test_gpu.py
-      - run: kernelpilot bakeoff --suite quick --budget 6 --backend triton
+      - run: tritune bakeoff --suite quick --budget 6 --backend triton

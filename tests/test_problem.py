@@ -1,6 +1,6 @@
 import pytest
 
-from kernelpilot.problem import KernelConfig, Problem, is_pow2, next_pow2
+from tritune.problem import KernelConfig, Problem, is_pow2, next_pow2
 
 
 def test_problem_key_roundtrip():

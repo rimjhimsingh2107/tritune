@@ -1,11 +1,11 @@
-from kernelpilot.agent.llm import LLMPlanner, Reply
-from kernelpilot.agent.planner import HeuristicPlanner, ToolCall, Turn
-from kernelpilot.agent.recommender import recommend
-from kernelpilot.agent.runner import AgentBudget, AgentRunner
-from kernelpilot.agent.tools import TOOLS, AgentState, ToolRegistry
-from kernelpilot.analysis.observations import Observation
-from kernelpilot.problem import KernelConfig, Problem
-from kernelpilot.session import Session
+from tritune.agent.llm import LLMPlanner, Reply
+from tritune.agent.planner import HeuristicPlanner, ToolCall, Turn
+from tritune.agent.recommender import recommend
+from tritune.agent.runner import AgentBudget, AgentRunner
+from tritune.agent.tools import TOOLS, AgentState, ToolRegistry
+from tritune.analysis.observations import Observation
+from tritune.problem import KernelConfig, Problem
+from tritune.session import Session
 
 
 def new_session(store, backend, settings, env, problem):

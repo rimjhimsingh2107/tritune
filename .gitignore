@@ -6,7 +6,7 @@ dist/
 build/
 .pytest_cache/
 .ruff_cache/
-.kernelpilot/
+.tritune/
 *.db
 *.sqlite
 reports/

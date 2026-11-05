@@ -66,7 +66,7 @@ export function ComparePage({ a, b }: { a: string | null; b: string | null }) {
           </div>
         </>
       )}
-      {!c && !cmp.loading && <div className="sub" style={{ marginTop: 12 }}>Pick two experiments. <code>kernelpilot bakeoff softmax</code> creates a matched pair.</div>}
+      {!c && !cmp.loading && <div className="sub" style={{ marginTop: 12 }}>Pick two experiments. <code>tritune bakeoff softmax</code> creates a matched pair.</div>}
     </>
   );
 }

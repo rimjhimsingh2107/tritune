@@ -1,6 +1,6 @@
-# KernelPilot report: agent on matmul:1024x1024x1024:fp16 (+12)
+# TriTune report: agent on matmul:1024x1024x1024:fp16 (+12)
 
-> **SIMULATED RESULTS: no GPU was used. Latencies and profiler counters come from KernelPilot's analytic model; numerical checks were emulated on the CPU. Do not quote these numbers as hardware performance.**
+> **SIMULATED RESULTS: no GPU was used. Latencies and profiler counters come from TriTune's analytic model; numerical checks were emulated on the CPU. Do not quote these numbers as hardware performance.**
 
 - experiment: `20261104-183444-0988` (agent, status done)
 - backend: simulated (no GPU; analytic model, numerics emulated on CPU)
@@ -866,7 +866,7 @@ None.
 ## Reproduce
 
 ```bash
-KP_SEED=0 KP_REPS=50 KP_WARMUP=10 kernelpilot ...  # see experiment params above
+TRITUNE_SEED=0 TRITUNE_REPS=50 TRITUNE_WARMUP=10 tritune ...  # see experiment params above
 ```
 
-Environment fingerprint: `{"backend": "sim", "gpu": "SIM-A100-40GB (simulated)", "cc": null, "driver": null, "cuda": null, "torch": null, "triton": null, "kernelpilot": "0.1.0", "model": "sim-roofline-1"}`
+Environment fingerprint: `{"backend": "sim", "gpu": "SIM-A100-40GB (simulated)", "cc": null, "driver": null, "cuda": null, "torch": null, "triton": null, "tritune": "0.1.0", "model": "sim-roofline-1"}`

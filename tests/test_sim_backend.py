@@ -1,14 +1,14 @@
 import pytest
 
-from kernelpilot.backends import CachedBackend, WorkerBackend, make_backend
-from kernelpilot.backends.isolation import InProcessExecutor, SubprocessExecutor
-from kernelpilot.backends.perf_model import SimDevice, predict
-from kernelpilot.backends.sim_engine import identify
-from kernelpilot.cache import ResultCache
-from kernelpilot.candidate import Candidate
-from kernelpilot.config import load_settings
-from kernelpilot.kernels import get_spec
-from kernelpilot.problem import KernelConfig, Problem
+from tritune.backends import CachedBackend, WorkerBackend, make_backend
+from tritune.backends.isolation import InProcessExecutor, SubprocessExecutor
+from tritune.backends.perf_model import SimDevice, predict
+from tritune.backends.sim_engine import identify
+from tritune.cache import ResultCache
+from tritune.candidate import Candidate
+from tritune.config import load_settings
+from tritune.kernels import get_spec
+from tritune.problem import KernelConfig, Problem
 
 
 def cand(key, **changes):
@@ -111,17 +111,17 @@ def test_perf_model_spills_hurt():
 def test_make_backend_auto_falls_back_to_sim(env, tmp_path):
     if env.can_run_triton:
         pytest.skip("real GPU present")
-    b = make_backend(load_settings(backend="auto", db_path=tmp_path / "kp.db"), env)
+    b = make_backend(load_settings(backend="auto", db_path=tmp_path / "tt.db"), env)
     assert b.simulated
 
 
 def test_make_backend_explains_missing_gpu(env, tmp_path):
     if env.can_run_triton:
         pytest.skip("real GPU present")
-    from kernelpilot.backends import BackendUnavailable
+    from tritune.backends import BackendUnavailable
 
     with pytest.raises(BackendUnavailable, match="CUDA"):
-        make_backend(load_settings(backend="triton", db_path=tmp_path / "kp.db"), env)
+        make_backend(load_settings(backend="triton", db_path=tmp_path / "tt.db"), env)
 
 
 class TestSubprocessIsolation:
@@ -144,9 +144,9 @@ class TestSubprocessIsolation:
         assert res["error_kind"] == "crash" and "code 3" in res["error"]
 
     def test_secrets_are_not_passed_down(self, monkeypatch):
-        from kernelpilot.backends.isolation import scrubbed_env
+        from tritune.backends.isolation import scrubbed_env
 
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
-        monkeypatch.setenv("KP_SEED", "1")
+        monkeypatch.setenv("TRITUNE_SEED", "1")
         env = scrubbed_env()
-        assert "ANTHROPIC_API_KEY" not in env and env["KP_SEED"] == "1"
+        assert "ANTHROPIC_API_KEY" not in env and env["TRITUNE_SEED"] == "1"

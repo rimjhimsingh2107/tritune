@@ -2,7 +2,7 @@
 
 import pytest
 
-from kernelpilot.env import detect
+from tritune.env import detect
 
 pytestmark = pytest.mark.gpu
 
@@ -10,11 +10,11 @@ ENV = detect()
 if not ENV.can_run_triton:
     pytest.skip("needs torch + triton + a CUDA device", allow_module_level=True)
 
-from kernelpilot.backends import WorkerBackend  # noqa: E402
-from kernelpilot.backends.isolation import SubprocessExecutor  # noqa: E402
-from kernelpilot.candidate import Candidate  # noqa: E402
-from kernelpilot.kernels import REGISTRY, get_spec  # noqa: E402
-from kernelpilot.problem import Problem  # noqa: E402
+from tritune.backends import WorkerBackend  # noqa: E402
+from tritune.backends.isolation import SubprocessExecutor  # noqa: E402
+from tritune.candidate import Candidate  # noqa: E402
+from tritune.kernels import REGISTRY, get_spec  # noqa: E402
+from tritune.problem import Problem  # noqa: E402
 
 SHAPES = {
     "vector_add": (1 << 20,),

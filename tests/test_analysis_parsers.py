@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from kernelpilot.analysis.ncu import parse_ncu_csv
-from kernelpilot.analysis.ptx import summarize_ptx
-from kernelpilot.backends.triton_engine import NCU_METRICS
+from tritune.analysis.ncu import parse_ncu_csv
+from tritune.analysis.ptx import summarize_ptx
+from tritune.backends.triton_engine import NCU_METRICS
 
 FIX = Path(__file__).parent / "fixtures"
 
