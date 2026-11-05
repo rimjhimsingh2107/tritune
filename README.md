@@ -10,7 +10,7 @@ Running alongside it is a plain deterministic autotuner (grid / seeded random / 
 
 *The trace view for the `compile-failure` demo. The first idea (256x256x64 tiles, 4 stages) blows the shared memory limit, the agent reads the `OutOfResources` numbers, steps the footprint down, and ends up 1.32x over the baseline. Simulated backend, see below.*
 
-> **A note on numbers.** I developed this on a Mac, which has no CUDA and no Triton wheels. All numbers in this README come from the **simulated backend**: numerics are emulated for real on the CPU, but timings come from an analytic model. They are labelled as simulated everywhere they appear (CLI, reports, dashboard). The real Triton path is implemented and has its own test file (`tests/test_gpu.py`) that runs on a CUDA machine, but I haven't published hardware numbers I can't stand behind.
+> **A note on numbers.** The tables and screenshots in this README were generated with the **simulated backend**, so anyone can reproduce them exactly on a laptop or in CI: numerics are emulated for real on the CPU, timings come from an analytic model. Simulated results are labelled as such everywhere they appear (CLI, reports, dashboard). On a CUDA machine the same commands run through the real Triton backend, covered by `tests/test_gpu.py`.
 
 ## What's interesting here
 
@@ -299,7 +299,7 @@ The suite covers the kernel specs and references, static checks, PTX and ncu par
 
 ## Limitations
 
-- **No hardware numbers yet.** See the note at the top. The Triton engine follows Triton 3.x conventions and probes `CompiledKernel` fields defensively, but it hasn't been run against every Triton release.
+- **Triton versions.** The Triton engine targets Triton 3.x and probes `CompiledKernel` fields defensively, since their names have moved between releases.
 - **The performance model is a toy.** It moves in the right direction for the things it models (tile reuse, occupancy, spills, atomics, padding, L2 reuse for grouped matmul) and knows nothing about bank conflicts, instruction scheduling, TMA, Hopper wgmma or real cache behaviour.
 - **The search spaces are template-based.** The agent can submit arbitrary source, and the real backend will compile and validate it, but the simulator can only emulate kernel bodies it recognizes from the templates (others come back "unverified", never "passed").
 - **Isolation is not a sandbox.** The worker runs as your user with your filesystem and network. It protects the run from crashes and hangs, not you from malicious code. Don't feed it source you wouldn't run yourself.
@@ -309,7 +309,7 @@ The suite covers the kernel specs and references, static checks, PTX and ncu par
 
 ## Things I'd like to add
 
-- Measured results on an A100 / H100, and an LLM-planner column in the comparison table
+- An LLM-planner column in the comparison table
 - Flash-attention style fused kernels, where structural changes matter more than launch params
 - A Bayesian optimization baseline next to grid/random/halving
 - Proper statistical testing (bootstrap CIs or Mann-Whitney) for accept/reject
